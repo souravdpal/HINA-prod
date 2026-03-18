@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HINA Voice Mobile Fix</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; text-align: center; background: #0a0a0a; color: #fff; padding: 20px; }
+        #status { font-size: 1.2em; margin: 20px; padding: 15px; border-radius: 10px; background: #1a1a1a; border: 1px solid #333; }
+        #transcript { font-size: 1.2em; margin: 20px auto; padding: 20px; background: #222; border-radius: 12px; min-height: 100px; color: #00ff9d; }
+        .ready { color: #00ff88; }
+        .listening { color: #ff3366; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 50% { opacity: 0.5; } }
+        button {
+            width: 80%;
+            padding: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            background: #00ff9d;
+            color: #000;
+            border: none;
+            border-radius: 50px;
+            margin: 10px 0;
+            box-shadow: 0 4px 15px rgba(0, 255, 157, 0.3);
+        }
+        button:active { transform: scale(0.95); background: #00cc7e; }
+        .setup-box { font-size: 0.9em; text-align: left; background: #331111; padding: 15px; border-radius: 10px; margin-top: 20px; border: 1px solid #ff4444; }
+    </style>
+</head>
+<body>
+    <h1>🎙️ HINA Mobile</h1>
+    
+    <div id="status">Tap the button below to start</div>
+    <div id="transcript">Transcript will appear here...</div>
+
+    <button id="micBtn" onclick="initMicrophone()">ACTIVATE MICROPHONE</button>
+
+    <div class="setup-box">
+        <strong>⚠️ If no permission popup appears:</strong><br>
+        1. Open Chrome on mobile.<br>
+        2. Go to: <code>chrome://flags/#unsafely-treat-insecure-origin-as-secure</code><br>
+        3. Add <b>http://[YOUR_IP]:3000</b> to the list.<br>
+        4. Set to <b>Enabled</b> and Relaunch.
+    </div>
+
+<script>
+const statusEl = document.getElementById('status');
+const transcriptEl = document.getElementById('transcript');
+const micBtn = document.getElementById('micBtn');
+
+let ws = null;
+let recognition = null;
+let isActive = false;
+
+function connectWS() {
+    ws = new WebSocket(`ws://${location.host}`);
+    ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'register', client: 'chrome' }));
+        statusEl.innerHTML = "Connected to Server. <br><b>Now tap Activate Microphone!</b>";
+    };
+    ws.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.type === 'startListening') {
+            startRecognition();
+        }
+    };
+    ws.onclose = () => setTimeout(connectWS, 2000);
+}
+
+// THIS FUNCTION TRIGGERS THE SYSTEM PERMISSION PROMPT
+function initMicrophone() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        statusEl.textContent = "❌ Browser not supported";
+        return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.continuous = false; // Mobile works better with false
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+        statusEl.innerHTML = '<span class="listening">🔴 LISTENING NOW...</span>';
+    };
+
+    recognition.onresult = (event) => {
+        let text = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            text += event.results[i][0].transcript;
+        }
+        transcriptEl.textContent = text;
+        
+        if (event.results[0].isFinal) {
+            sendFinal(text);
+        }
+    };
+
+    recognition.onerror = (e) => {
+        statusEl.textContent = "Error: " + e.error;
+        console.error(e);
+    };
+
+    recognition.onend = () => {
+        statusEl.innerHTML = '<span class="ready">✅ Waiting for Python command...</span>';
+    };
+
+    // Initial start to trigger permission
+    recognition.start();
+    micBtn.style.display = "none";
+    statusEl.textContent = "Permission granted! Ready.";
+}
+
+function startRecognition() {
+    if (!recognition) {
+        alert("Please tap the Activate button first!");
+        return;
+    }
+    try {
+        recognition.start();
+    } catch (e) {
+        console.log("Recognition already running or needs restart");
+    }
+}
+
+function sendFinal(text) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'finalTranscript', text: text }));
+        statusEl.textContent = "Sent: " + text;
+    }
+}
+
+connectWS();
+</script>
+</body>
+</html>

@@ -8,9 +8,12 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "<p align=\"center\">   <b>Personal AI Assistant built from scratch</b><br>   Voice • Automation • Intelligence • System Control </p>",
   "type": "commonjs",
   "dependencies": {
-    "puppeteer": "^24.39.1"
+    "express": "^5.2.1",
+    "http": "^0.0.1-security",
+    "puppeteer": "^24.39.1",
+    "ws": "^8.19.0"
   }
 }

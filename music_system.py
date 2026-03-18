@@ -100,6 +100,7 @@ def play_music_logic(input_text: str):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"User Request: {input_text}\nTop Matches: {list_music}"}
             ],
+            response_format={"type": "json_object"},
             temperature=0
         )
 

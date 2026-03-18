@@ -5,6 +5,8 @@ import cv2
 from pathlib import Path
 import os 
 import uuid
+from groq import Groq
+
 load_dotenv()
 
 raw_file_Dir =Path("/run/media/sourav/souravMain/HINA-prod/scr")
@@ -42,7 +44,41 @@ def link_cam_image()->str:
     os.remove(raw_file_Dir/file_name)
     return  res.url
 
-if __name__ =="__main__":
-    link_cam_image()
-        
+def get_img_res():
+    link =link_cam_image()
+
+    client = Groq(api_key=os.environ.get("image_key"))
+    completion = client.chat.completions.create(
+    model="meta-llama/llama-4-scout-17b-16e-instruct",
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "describe this image in pointers describe how it looks what it about in pointers summary"
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"{link}"
+                    }
+                }
+            ]
+        }
+    ],
+    temperature=1,
+    max_completion_tokens=512,
+    top_p=1,
+    stream=False,
+    stop=None,)
+    res_o = completion.choices[0].message.content
+    print(res_o)
+    return(res_o)
+
+def response_image(q):
+    from hina_brain import model_res
+    model_res(up=q,sec_data=f"Hina i am  your camera agent and becuse sourav wanted acces cam so i click pic you can see i found here summary: {str(get_img_res())}")
+
+    
     

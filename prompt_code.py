@@ -37,6 +37,7 @@ def code_maker(user_prompt: str):
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
         ],
+        response_format={"type": "json_object"},
         temperature=0.1 # Lower temperature makes the output more consistent/robotic
     )
 
