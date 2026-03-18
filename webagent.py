@@ -8,9 +8,9 @@ load_dotenv()
 from groq import Groq
 
 phone_book ={
-    "dad" : "+918010051385",
-    "mom" : "+919355181606",
-    "sourav":"+919599861006"
+    "dad" : os.getenv("dad"),
+    "mom" : os.getenv("mom"),
+    "sourav":os.getenv("x_person")
 }
 
 def Youtubeplay(q):
