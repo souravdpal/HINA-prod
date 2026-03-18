@@ -1,135 +1,113 @@
-🌌 HINA: High-Intelligence Network Assistant
+# HINA
 
-HINA is an advanced, modular AI assistant designed to bridge the gap between Large Language Models and local system control. Built with a "Guard-Brain" architecture, HINA doesn't just chat—she executes. From managing local music databases to performing autonomous web research, HINA acts as a central nervous system for your digital life.
+<p align="center">
+  <b>Personal AI Assistant built from scratch</b><br>
+  Voice • Automation • Intelligence • System Control
+</p>
 
-🚀 Key Features
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.10+-blue?style=flat-square"/>
+  <img src="https://img.shields.io/badge/linux-arch-important?style=flat-square"/>
+  <img src="https://img.shields.io/badge/status-active-success?style=flat-square"/>
+</p>
 
-🛡️ The Guard Model (Intent Routing)
+---
 
-Unlike standard bots, HINA uses a specialized "Guard" classifier. Every user query is first analyzed by a low-latency model to determine the correct execution path:
+## Overview
 
-music: Triggers local media playback logic.
+HINA is a fully custom-built personal AI assistant designed to **control systems, process voice, and interact intelligently**.  
 
-web: Initiates autonomous web scraping and research.
+It is not just a chatbot — it is a **modular system** combining:
 
-code: Handles system-level tasks and file operations.
+- Speech Recognition (STT)
+- Text-to-Speech (TTS)
+- System Automation
+- Web Interaction
+- AI Processing
 
-chat: Standard conversational mode with a human-like personality.
+---
 
-🧠 Persistent Neural Memory
+## Architecture
+User (Voice / Input)
+↓
+Speech Engine (STT)
+↓
+HINA Brain (Processing / Logic)
+↓
+Modules (Web, Files, System, AI)
+↓
+Voice Engine (TTS Output)
 
-HINA utilizes a MySQL backend to store long-term conversations.
 
-Agentic Summarization: A dedicated background agent (summarizer.py) processes historical data.
+---
+├── hina_brain.py # Core logic
+├── speech_engine.py # Speech-to-text
+├── voice_engine.py # Text-to-speech
+├── stt_module.py # STT handling
+├── pipe_tts.py # TTS pipeline
+├── web_crawler.py # Web scraping
+├── summarizer.py # AI summarization
+├── music_system.py # Media control
+├── screen_live.py # Screen interaction
+├── memo.py # Memory system
+├── raw_web.py # Web raw handling
+├── prompt_code.py # Prompt handling
+├── package.json # Node.js dependencies
+├── package-lock.json # Node.js lock file
+├── *.onnx # Voice models
+└── README.md # Project overview
 
-Contextual Recall: HINA remembers past interactions with "Sourav," allowing her to reference previous topics naturally during conversation.
+## Features
 
-🎵 Intelligent Music System
+- Voice-controlled interaction
+- Real-time speech processing
+- Modular, extendable architecture
+- Web crawling & summarization
+- System-level automation
+- Custom AI logic (offline-ready)
 
-Fuzzy Search: Uses rapidfuzz to find songs in a local mass storage DB even with typos.
+---
 
-LLM Ranking: If multiple matches are found, a secondary LLM determines the most likely intended track.
+## Tech Stack
 
-Native Playback: Seamlessly controls mpv for background audio.
+- Python
+- Node.js (for browser STT)
+- ONNX models (offline voice)
+- Linux (Arch-based environment)
 
-🌐 Autonomous Research Pipeline
+---
 
-When asked about current events, HINA:
+## Setup
 
-Expands your query into multiple search permutations.
+```bash
+git clone https://github.com/your-username/hina.git
+cd hina
 
-Scrapes DuckDuckGo and individual websites.
+pip install -r requirements.txt
+npm install
 
-Synthesizes thousands of words of "raw web" data into a concise, cited answer.
 
-🗣️ Neural TTS & STT
+Philosophy
 
-STT: Efficient speech-to-text with fuzzy wake-word detection ("Hina").
+HINA is built with a simple idea:
 
-TTS: Powered by Piper (ONNX) using high-quality voices like en_US-amy-medium for natural, low-latency speech synthesis.
+Control your system.
+Understand your tools.
+Don’t depend blindly.
 
-🛠️ Project Structure
+Future Goals
 
-File
+Improve conversational intelligence
 
-Description
+Persistent memory system
 
-body_hina.py
+Full offline capability
 
-The main entry point. Handles wake-word detection and Intent Guard routing.
+GUI interface
 
-hina_brain.py
 
-The core LLM logic. Manages personality, prompt engineering, and memory injection.
+Author
 
-music_system.py
+Sourav
 
-Local library indexing, fuzzy matching, and mpv control.
-
-raw_web.py
-
-Multi-step research pipeline (search, scrape, and extract).
-
-summarizer.py
-
-Agentic memory processor that turns SQL rows into "memories."
-
-pipe_tts.py
-
-TTS engine configuration for the Piper ONNX models.
-
-⚙️ Installation & Setup
-
-1. Prerequisites
-
-Python 3.9+
-
-MySQL Server (Running with a Hina database and short_memo table)
-
-External Tools: mpv (for music), piper (for voice)
-
-2. Environment Variables (.env)
-
-api_hina="your_groq_api_key"
-hinasum="your_groq_api_key_for_summarizer"
-user="mysql_username"
-pass="mysql_password"
-personal="Your_Detailed_Hina_Personality_Prompt"
-
-
-3. Install Dependencies
-
-pip install groq rapidfuzz mysql-connector-python beautifulsoup4 requests python-dotenv piper-tts
-
-
-🔮 Roadmap: The "God-Mode" Update
-
-HINA is rapidly evolving. The following features are currently in development:
-
-👁️ Vision System: Camera integration using OpenCV to recognize objects and "watch" the real world.
-
-📸 Proactive Troubleshooting: Automated screenshot analysis to detect when the user is struggling with code and offer solutions unprompted.
-
-⌨️ Full PC Control: Direct system manipulation using pyautogui.
-
-🖐️ Gesture Control: Hand-tracking via MediaPipe to control volume and windows.
-
-👨‍💻 About the Developer
-
-Sourav | 17-year-old Developer 🚀
-
-🔭 Currently: Building HINA to be the ultimate autonomous companion.
-
-🤝 Seeking: Collaboration on improving code efficiency and LLM agentic workflows.
-
-🌱 Learning: AI Architecture + MERN Stack.
-
-⚡ Fun Fact: "I’m 17 — still figuring life out, but already coding like it’s my first language."
-
-💬 Connect
-
-GitHub: souravdpal
-
-Interests: 🧠 AI, ⚙️ Full-Stack, 🌌 Space & Quantum Physics, 🛡️ Cybersecurity.
-
-"Building the future, one function at a time."
+<p align="center"> <i>Built with focus. No distractions.</i> </p> ```
