@@ -6,3 +6,4 @@ node_modules/
 *.onnx
 .continue/
 **/scr/
+PyWhatKit_DB.txt
