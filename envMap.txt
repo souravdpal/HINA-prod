@@ -1,0 +1,25 @@
+host=
+user=
+pass=
+database=
+unix_socket=
+api_hina=
+hinasum=
+codehina=
+supass =
+music_gen=
+crwaler=
+personal ="You are Hina.\nyou are super...."
+ig_public_key=""
+ig_private_key=""
+url_endpoint=""
+image_key=
+dad ="countory code number"
+mom = 
+x_person =
+
+
+-----------------------------
+
+piper english=> en_US-amy-medium.onnx.json
+piper hindi  =>hi_IN-priyamvada-medium.onnx.json

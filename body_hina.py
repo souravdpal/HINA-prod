@@ -27,6 +27,7 @@ cam => if user want make system to acces real world camera and pics stuff
 
 msg => if user want to text somone on whatsapp and want to message
 
+
 yt=> if user want to play any kind of music and any type of vedio
 
 format : 
