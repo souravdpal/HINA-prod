@@ -10,6 +10,7 @@ from pipe_tts import speak_text
 import difflib
 from cam_get import response_image
 from webagent import Youtubeplay , whatsapp_send , what_Format_maker
+from youtube_RAG import play_vedio  , yt_subs
 
 prompt_c="""
 you are a guarding model bewteen user and system you have to return a strict json file to tell what model should appropriate for user querr
@@ -21,14 +22,15 @@ web => to find real time information about world and news and things which will 
 
 chat => if user  querry is about hina normal casual not match with other user want to talk then use chat model for hina
 
-code => if user want do any stuff realted to code , system , files  this will manage use code 
+code => if user want do any stuff realted to code , system , files  this will manage use code  NOTE : use it in any system related things to perform any process any stuff anything which realted system need to run code and commands 
 
 cam => if user want make system to acces real world camera and pics stuff
 
 msg => if user want to text somone on whatsapp and want to message
 
-
 yt=> if user want to play any kind of music and any type of vedio
+
+sum => important agent used to summazrize a youtube vedio when user want to a summary of specifc vedio use this
 
 format : 
 
@@ -123,7 +125,7 @@ def wakey_wakey():
             
 
             if new_ck == "yt":
-                Youtubeplay(q=st_t)
+                play_vedio(q=str(st_t))
             elif new_ck == "msg":
                 whatsapp_send(what_Format_maker(user_prompt=str(st_t)))
 
@@ -135,7 +137,8 @@ def wakey_wakey():
               
             elif new_ck == "cam":
                 response_image(q=str(st_t))
-
+            elif new_ck=="sum":
+                yt_subs(q=str(st_t))
             else:
                 # lazy import only when needed
                 from hina_brain import model_res

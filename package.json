@@ -1,19 +1,25 @@
 {
   "name": "hina-prod",
   "version": "1.0.0",
-  "main": "stt_headless.js",
+  "description": "<p align=\"center\">   <b>Personal AI Assistant built from scratch</b><br>   Voice • Automation • Intelligence • System Control </p>",
+  "main": "stt_ws.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/souravdpal/HINA-prod.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "<p align=\"center\">   <b>Personal AI Assistant built from scratch</b><br>   Voice • Automation • Intelligence • System Control </p>",
   "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/souravdpal/HINA-prod/issues"
+  },
+  "homepage": "https://github.com/souravdpal/HINA-prod#readme",
   "dependencies": {
     "express": "^5.2.1",
-    "http": "^0.0.1-security",
-    "puppeteer": "^24.39.1",
-    "ws": "^8.19.0"
+    "ws": "^8.21.0"
   }
 }

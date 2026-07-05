@@ -12,19 +12,7 @@ def summarize_web_data(web_data: str,
                        api_key: str = None,
                        model: str = "allam-2-7b",
                        max_tokens: int = 512) -> str:
-    """
-    Summarizes web data concisely to match a user query using allam-2-7b.
-
-    Parameters:
-        web_data (str): Raw data from web or sources.
-        user_query (str): The user's query that the summary should match.
-        api_key (str): Groq API key (loaded from .env if None).
-        model (str): Groq model to use for summarization.
-        max_tokens (int): Maximum number of tokens for the summary.
-
-    Returns:
-        str: Concise, pointer-style summary.
-    """
+   
 
     if api_key is None:
         api_key = os.getenv("crwaler")  # ensure your API key is in .env

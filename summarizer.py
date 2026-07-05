@@ -1,5 +1,5 @@
 from groq import Groq
-import mysql.connector
+import pymysql
 from dotenv import load_dotenv
 import os
 load_dotenv()
@@ -13,16 +13,13 @@ this  talk is between hina (who you are summaries in perspective of ) and boy so
 """
 
 
-conn = mysql.connector.connect(
+conn = pymysql.connect(
     user=str(os.getenv("user")),
-    password=(os.getenv("pass")),                  # Your actual password goes here
+    password=os.getenv("pass"),            # Your actual password goes here
     unix_socket="/run/mysqld/mysqld.sock", # The path to your socket
-    database="Hina",                      # Your database name
-    auth_plugin='mysql_native_password'   # Leave this exactly as is
+    database="hina"                       # Your database name
 )
 cursor = conn.cursor()
-print("✅ Connected successfully via Unix socket.")
-
 
 def get_data():
     data_res =[]
@@ -48,8 +45,8 @@ def model_res_sum(
     client = Groq(api_key=api_key)
 
     user_prompt = f"""you have to summarize summarize in just small and dont show your words just summarize
-you are advance summarizing model who is here to summarize given data :=>{data}
-also specially focus on ====>{special}
+you are advance summarizing model who is here to summarize  here are old memories and talks which could helpufl consideration to make a summary fully focused no halluscinations:=>{data}
+also specially focus on  this data give here =>{special}
 
 """
 

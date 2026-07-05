@@ -6,22 +6,12 @@ import subprocess as sub
 import os
 
 def speak_text(text: str, output_file: str = "output.wav", 
-               voice_file: str = "en_US-amy-medium.onnx",#"hi_IN-priyamvada-medium.onnx",
+               voice_file: str = "hi_IN-priyamvada-medium.onnx", #"hi_IN-priyamvada-medium.onnx",,#"hi_IN-priyamvada-medium.onnx",
                volume: float = 0.6, length_scale: float = 1.0,
                noise_scale: float = 0.4, noise_w_scale: float = 0.4,
                normalize_audio: bool = True,
                auto_play: bool = True,
                cleanup: bool = True):
-    """
-    Convert text to speech using Piper and save as a WAV file, then optionally play and remove it.
-
-    Tweaks:
-    - length_scale = 1.0 → natural normal speed
-    - noise_scale = 0.4 → less jitter, smoother
-    - noise_w_scale = 0.4 → stable speaking variation
-    - volume slightly higher for clarity
-    """
-
     # Check if voice file exists
     if not Path(voice_file).is_file():
         raise FileNotFoundError(f"Voice file not found: {voice_file}")

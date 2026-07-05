@@ -48,6 +48,7 @@ HINA OLD MEMORIES ABOUT YOUR CONVERSATION WITH SOURAV dont talk about just take 
   k_res = completion.choices[0].message.content
     
   short_term_memory(user=up, ai=k_res)
+  print(k_res)
 
   speak_text(text=str(k_res).replace("*",""))
 

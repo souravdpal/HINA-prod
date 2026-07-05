@@ -9,7 +9,7 @@ from groq import Groq
 
 load_dotenv()
 
-raw_file_Dir =Path("/run/media/sourav/souravMain/HINA-prod/scr")
+raw_file_Dir =Path("/run/media/sourav/c66a6751-43e9-4dc0-8534-ef0403e815ed/hina_ai/scr")
 
 raw_file_Dir.mkdir(parents=True,exist_ok=True)
 file_name =f"{uuid.uuid4().hex}.jpg"

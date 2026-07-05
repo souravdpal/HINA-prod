@@ -1,7 +1,7 @@
 import json
 import re 
 import os
-import mysql.connector
+import pymysql
 from dotenv import load_dotenv
 import uuid
 load_dotenv()
@@ -9,16 +9,13 @@ load_dotenv()
 
 def get_id():
     return uuid.uuid4().hex
-
-conn = mysql.connector.connect(
+conn = pymysql.connect(
     user=str(os.getenv("user")),
-    password=(os.getenv("pass")),                  # Your actual password goes here
+    password=os.getenv("pass"),            # Your actual password goes here
     unix_socket="/run/mysqld/mysqld.sock", # The path to your socket
-    database="Hina",                      # Your database name
-    auth_plugin='mysql_native_password'   # Leave this exactly as is
+    database="hina"                       # Your database name
 )
 cursor = conn.cursor()
-print("✅ Connected successfully via Unix socket.")
 def short_term_memory(user , ai , sm="offline",read:bool=False):
     if(read==False):
        cursor.execute(
