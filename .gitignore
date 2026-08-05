@@ -18,3 +18,22 @@ core/whisper_cache/
 node_modules
 node_modules
 node_modules
+# Virtual environments
+hina2/
+venv/
+env/
+*.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.Python
+
+# Env/secrets
+.env
+*.env.local
+
+# OS/editor
+.DS_Store
+.vscode/
