@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mcp-server-docker:latest
+    stdin_open: true
+    tty: true
