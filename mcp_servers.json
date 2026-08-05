@@ -1,0 +1,68 @@
+[
+    { 
+        "name": "github_mcp", 
+        "label": "GitHub", 
+        "icon": "fa-brands fa-github", 
+        "description": "Search repos, issues, PRs" 
+    },
+    { 
+        "name": "youtube_mcp", 
+        "label": "YouTube", 
+        "icon": "fa-brands fa-youtube", 
+        "description": "Search videos, fetch transcripts" 
+    },
+    { 
+        "name": "web_search_mcp", 
+        "label": "Web Search", 
+        "icon": "fa-solid fa-magnifying-glass", 
+        "description": "Search the live web" 
+    },
+    { 
+        "name": "complex_model_mcp", 
+        "label": "Complex task?", 
+        "icon": "fa-solid fa-code", 
+        "description": "Give the hardest questions!" 
+    },
+    { 
+        "name": "web_search_mcp", 
+        "label": "Deep Search", 
+        "icon": "fa-solid fa-magnifying-glass", 
+        "description": "Search the live web" 
+    },
+    { 
+        "name": "code_mcp", 
+        "label": "Code & Environment", 
+        "icon": "fa-solid fa-laptop-code", 
+        "description": "Execute code, query databases, and manage files/containers" 
+    },
+    { 
+        "name": "music_mcp", 
+        "label": "Music", 
+        "icon": "fa-solid fa-music", 
+        "description": "Play any music" 
+    },
+    { 
+        "name": "msg_mcp", 
+        "label": "Messages", 
+        "icon": "fa-solid fa-comment-dots", 
+        "description": "Send, read, and manage text messages or emails" 
+    },
+    { 
+        "name": "imagine_mcp", 
+        "label": "Imagine", 
+        "icon": "fa-solid fa-wand-magic-sparkles", 
+        "description": "Generate AI images from text prompts" 
+    },
+    { 
+        "name": "astro_mcp", 
+        "label": "Space Data", 
+        "icon": "fa-solid fa-user-astronaut", 
+        "description": "Fetch real-time space, celestial, and NASA API data" 
+    },
+    { 
+        "name": "calendar_mcp", 
+        "label": "Calendar", 
+        "icon": "fa-regular fa-calendar", 
+        "description": "Schedule events and manage daily tasks" 
+    }
+]

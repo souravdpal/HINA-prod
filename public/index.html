@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HINA</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ================= HEADER ================= -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="orb-wrap">
+        <canvas id="hina-orb" width="56" height="56"></canvas>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">HINA</span>
+        <span class="brand-status">
+          <i id="status-dot" class="status-dot"></i>
+          <span id="ui-state-label">Idle</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <span id="live-token-echo" class="voice-pill"></span>
+      <button type="button" id="clear-chat-btn" class="icon-btn" title="New chat">
+        <i class="fa-regular fa-square-plus"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= CHAT ================= -->
+  <main class="chat-shell">
+    <div id="chat-window" class="chat-window">
+      <div class="empty-state" id="empty-state">
+        <div class="empty-orb"><i class="fa-solid fa-sparkles"></i></div>
+        <h1>How can I help you today?</h1>
+        <p>Ask anything, drop in a task, or bring an MCP tool in with <code>@</code>.</p>
+      </div>
+    </div>
+
+    <button type="button" id="scroll-bottom-btn" class="scroll-bottom-btn hidden" title="Scroll to latest">
+      <i class="fa-solid fa-arrow-down"></i>
+    </button>
+  </main>
+
+  <!-- ================= COMPOSER ================= -->
+  <footer class="composer-shell">
+    <form id="input-form" class="composer">
+
+      <div id="mcp-pill" class="mcp-pill hidden">
+        <i id="mcp-pill-icon" class="fa-solid fa-plug"></i>
+        <span id="mcp-pill-label"></span>
+        <button type="button" id="mcp-pill-remove" aria-label="Remove tool">&times;</button>
+      </div>
+
+      <div id="mcp-dropdown" class="mcp-dropdown hidden"></div>
+
+      <div id="attach-chip-row" class="attach-chip-row hidden"></div>
+
+      <div class="composer-row">
+        <button type="button" id="attach-btn" class="icon-btn composer-icon" title="Attach files or images">
+          <i class="fa-solid fa-paperclip"></i>
+        </button>
+        <input type="file" id="file-input" multiple hidden>
+
+        <button type="button" id="mic-btn" class="icon-btn composer-icon" title="Voice input">
+          <i class="fa-solid fa-microphone"></i>
+        </button>
+
+        <textarea
+          id="prompt-input"
+          rows="1"
+          placeholder="Message HINA… (type @ to bring in a tool, drop or paste a file)"
+          autocomplete="off"></textarea>
+
+        <button type="submit" id="send-btn" class="send-btn" title="Send" disabled>
+          <i class="fa-solid fa-arrow-up"></i>
+        </button>
+      </div>
+
+      <div id="drop-overlay" class="drop-overlay hidden">
+        <div class="drop-overlay-inner">
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+          <span>Drop files or images to attach</span>
+        </div>
+      </div>
+    </form>
+
+    <div class="composer-hint">HINA can make mistakes. Verify important information.</div>
+  </footer>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

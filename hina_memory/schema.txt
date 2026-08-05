@@ -1,0 +1,31 @@
+-- Hina long-term memory schema
+-- Run against the same DB as conversation_history (hina_prod2)
+-- IMPORTANT: collation matches conversation_history's session_id collation
+-- (utf8mb4_uca1400_ai_ci). Check yours first with:
+--   SHOW CREATE TABLE conversation_history\G
+-- and adjust COLLATE below if it differs.
+
+USE hina_prod2;
+
+DROP TABLE IF EXISTS long_term_memory;
+DROP TABLE IF EXISTS memory_checkpoint;
+
+CREATE TABLE long_term_memory (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    session_id VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
+    category VARCHAR(50) NOT NULL,        -- favorite_singer, favorite_person, favorite_place,
+                                           -- birthday, key_date, preference, misc
+    fact TEXT NOT NULL,                   -- the bullet point itself, third person, <15 words
+    fact_hash CHAR(64) NOT NULL,          -- sha256 of lowercased fact, for exact dedup
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_session_fact (session_id, fact_hash),
+    KEY idx_session (session_id),
+    KEY idx_category (category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+
+CREATE TABLE memory_checkpoint (
+    session_id VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci PRIMARY KEY,
+    last_processed_id BIGINT NOT NULL DEFAULT 0,  -- highest conversation_history.id summarized
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
