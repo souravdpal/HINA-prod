@@ -1,0 +1,112 @@
+<%- include('partials/header') %>
+
+<!-- Banner Hero Section -->
+<div class="bg-gradient-to-r from-slate-900 to-amber-950 text-white py-12 px-4 sm:px-6 lg:px-8">
+  <div class="max-w-7xl mx-auto text-center md:text-left md:flex md:items-center md:justify-between">
+    <div class="space-y-3 max-w-xl">
+      <span class="text-amber-400 font-bold uppercase tracking-wider text-xs">Curated Quality Guides</span>
+      <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight">Today's Best Amazon Products</h1>
+      <p class="text-gray-300 text-sm md:text-base">We research, test, and hand-select the finest Amazon products to save you hours of comparison shopping. Guaranteed high-satisfaction picks.</p>
+    </div>
+    <div class="mt-8 md:mt-0 flex flex-wrap justify-center gap-3">
+      <span class="bg-gray-800/80 px-4 py-2 rounded-full border border-gray-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-shield-halved text-amber-500"></i> Quality Verified</span>
+      <span class="bg-gray-800/80 px-4 py-2 rounded-full border border-gray-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-truck text-amber-500"></i> Prime Eligible</span>
+      <span class="bg-gray-800/80 px-4 py-2 rounded-full border border-gray-700 text-xs flex items-center gap-1.5"><i class="fa-solid fa-tags text-amber-500"></i> Best Prices</span>
+    </div>
+  </div>
+</div>
+
+<!-- Category & Filters Bar -->
+<div class="bg-white border-b border-gray-200 py-4 shadow-sm sticky top-[64px] z-40">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
+    <!-- Categories List -->
+    <div class="flex items-center space-x-2 overflow-x-auto w-full md:w-auto py-1">
+      <a href="/" class="px-4 py-1.5 rounded-full text-sm font-semibold transition <%= !selectedCategory ? 'bg-amber-500 text-slate-950' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' %>">
+        All Categories
+      </a>
+      <% categories.forEach(category => { %>
+        <a href="/?category=<%= category %>" class="px-4 py-1.5 rounded-full text-sm font-semibold transition <%= selectedCategory === category ? 'bg-amber-500 text-slate-950' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' %>">
+          <%= category %>
+        </a>
+      <% }) %>
+    </div>
+
+    <!-- Active Search Info / Reset -->
+    <% if (searchQuery || selectedCategory) { %>
+      <div class="text-sm text-gray-600 flex items-center gap-2">
+        <span>Filtered view active</span>
+        <a href="/" class="text-red-500 hover:underline font-semibold text-xs flex items-center gap-1">
+          <i class="fa-solid fa-circle-xmark"></i> Clear Filters
+        </a>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<!-- Product Grid Section -->
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+  <% if (products.length === 0) { %>
+    <div class="text-center py-20 bg-white rounded-lg shadow-sm border border-gray-200">
+      <i class="fa-regular fa-folder-open text-gray-400 text-5xl mb-4"></i>
+      <h3 class="text-xl font-bold text-gray-700">No matching items found</h3>
+      <p class="text-gray-500 mt-1">Try resetting search criteria or add new items via dashboard.</p>
+      <a href="/" class="mt-6 inline-block bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-6 py-2.5 rounded-md transition">
+        Browse All Products
+      </a>
+    </div>
+  <% } else { %>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+      <% products.forEach(product => { %>
+        <div class="bg-white rounded-xl shadow-sm hover:shadow-lg border border-gray-100 flex flex-col overflow-hidden transition-transform duration-300 hover:-translate-y-1">
+          <!-- Image Wrapper with badge -->
+          <div class="relative bg-gray-50 aspect-video md:aspect-square flex items-center justify-center p-4">
+            <% if (product.isFeatured) { %>
+              <span class="absolute top-2 left-2 bg-red-600 text-white text-[10px] uppercase font-extrabold tracking-wider px-2 py-1 rounded">
+                Editor's Pick
+              </span>
+            <% } %>
+            <span class="absolute top-2 right-2 bg-slate-900/80 text-white text-[10px] font-semibold px-2.5 py-1 rounded-full backdrop-blur-sm">
+              <%= product.category %>
+            </span>
+            <img src="<%= product.imageUrl %>" alt="<%= product.title %>" class="max-h-full max-w-full object-contain">
+          </div>
+
+          <!-- Product Details -->
+          <div class="p-5 flex-1 flex flex-col justify-between">
+            <div class="space-y-2">
+              <div class="flex items-center space-x-1 text-amber-500 text-sm">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <i class="fa-solid <%= i <= Math.round(product.rating) ? 'fa-star' : 'fa-star-half-stroke' %>"></i>
+                <% } %>
+                <span class="text-gray-500 text-xs font-semibold ml-1">(<%= product.rating %>)</span>
+              </div>
+              <h2 class="text-gray-900 font-bold text-base line-clamp-2 hover:text-amber-600 transition">
+                <a href="/product/<%= product.id %>"><%= product.title %></a>
+              </h2>
+              <p class="text-gray-500 text-xs line-clamp-2 leading-relaxed">
+                <%= product.description %>
+              </p>
+            </div>
+
+            <div class="pt-5 mt-4 border-t border-gray-100 flex items-center justify-between">
+              <div>
+                <span class="text-xs text-gray-400 block font-medium">Price</span>
+                <span class="text-xl font-black text-gray-900">$<%= product.price %></span>
+              </div>
+              <a 
+                href="<%= product.affiliateUrl %>" 
+                target="_blank" 
+                rel="nofollow noopener" 
+                class="amazon-yellow amazon-yellow-hover text-slate-950 font-bold text-xs py-2 px-4 rounded-md shadow-sm transition flex items-center gap-1.5"
+              >
+                Buy on Amazon <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<%- include('partials/footer') %>

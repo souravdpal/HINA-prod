@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartChoice - Premium Buying Guides & Best Deals</title>
+    <meta name="description" content="Expert reviews, handpicked Amazon recommendations, and side-by-side product comparisons to help you buy smart.">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 font-['Inter'] antialiased">
+
+    <!-- TOP ANNOUNCEMENT BAR / AFFILIATE DISCLAIMER -->
+    <div class="bg-amber-500 text-slate-950 px-4 py-2 text-xs md:text-sm font-semibold text-center relative z-50 shadow-sm">
+        <i class="fa-solid fa-circle-info mr-1"></i> As an Amazon Associate, we earn from qualifying purchases at no extra cost to you.
+    </div>
+
+    <!-- QUICK CONFIGURATION FLOATER (Allows user to instantly set their Amazon Affiliate Tag) -->
+    <div id="config-bar" class="bg-slate-900 text-white px-4 py-3 border-b border-slate-800 transition-all duration-300">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3 text-sm">
+            <div class="flex items-center gap-2">
+                <span class="bg-amber-500 text-slate-950 text-xs px-2 py-0.5 rounded font-bold uppercase tracking-wider">Config</span>
+                <p>Personalize this site! Input your <strong>Amazon Affiliate Tag</strong> to rewrite all outbound links:</p>
+            </div>
+            <div class="flex items-center gap-2 w-full md:w-auto">
+                <input type="text" id="affiliate-tag-input" placeholder="e.g. smartchoice-20" class="bg-slate-800 text-white border border-slate-700 px-3 py-1.5 rounded text-sm w-full md:w-48 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <button id="save-tag-btn" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-1.5 rounded transition duration-200 shrink-0">Save Tag</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN HEADER & NAVIGATION -->
+    <header class="sticky top-0 bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100 z-40 transition-all duration-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <!-- Brand Logo -->
+            <a href="#" class="flex items-center gap-2" id="logo-home">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-600 flex items-center justify-center text-white font-black text-xl shadow-md shadow-amber-500/20">
+                    S
+                </div>
+                <div>
+                    <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">SmartChoice</span>
+                    <span class="block text-[10px] text-amber-600 font-bold tracking-widest uppercase -mt-1">Affiliate Hub</span>
+                </div>
+            </a>
+
+            <!-- Desktop Nav Links -->
+            <nav class="hidden md:flex items-center gap-8 font-medium text-sm text-slate-600">
+                <a href="#home" class="hover:text-amber-600 transition" id="nav-home">Home</a>
+                <a href="#products-section" class="hover:text-amber-600 transition" id="nav-products">Products</a>
+                <a href="#blog-section" class="hover:text-amber-600 transition" id="nav-blog">Buying Guides</a>
+                <a href="#about-section" class="hover:text-amber-600 transition">About Us</a>
+            </nav>
+
+            <!-- CTA / Action Area -->
+            <div class="flex items-center gap-3">
+                <div class="relative">
+                    <input type="text" id="nav-search-input" placeholder="Search products..." class="hidden lg:block bg-slate-50 hover:bg-slate-100 text-slate-800 pl-9 pr-4 py-2 rounded-full border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white w-60 transition-all duration-200">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 hidden lg:block text-xs"></i>
+                </div>
+                <!-- Compare Badge Trigger -->
+                <button id="compare-trigger-btn" class="relative bg-slate-100 hover:bg-slate-200 text-slate-700 p-2.5 rounded-full transition duration-150">
+                    <i class="fa-solid fa-scale-balanced text-lg"></i>
+                    <span id="compare-badge" class="absolute -top-1 -right-1 bg-amber-500 text-slate-950 font-bold text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow-sm">0</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- HERO SECTION -->
+    <section class="relative bg-gradient-to-b from-slate-900 to-slate-800 text-white pt-16 pb-24 overflow-hidden">
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(245,158,11,0.15),rgba(255,255,255,0))]"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            <div class="lg:col-span-7 space-y-6 text-center lg:text-left">
+                <div class="inline-flex items-center gap-2 bg-slate-800/80 border border-slate-700 rounded-full px-3.5 py-1 text-xs text-amber-400 font-semibold tracking-wider uppercase mx-auto lg:mx-0 shadow-sm">
+                    <i class="fa-solid fa-sparkles"></i> Handpicked & Tested Gear Reviews
+                </div>
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-black leading-none tracking-tight text-white">
+                    Don't Guess. <br><span class="bg-gradient-to-r from-amber-400 to-amber-500 bg-clip-text text-transparent">Buy the Smartest</span> Product.
+                </h1>
+                <p class="text-lg text-slate-300 max-w-xl mx-auto lg:mx-0">
+                    We spend hundreds of hours researching, hands-on testing, and compiling Amazon reviews so you don't have to. Real recommendations, zero bias.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                    <a href="#products-section" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-8 py-3.5 rounded-xl transition duration-150 shadow-lg shadow-amber-500/20 text-center flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-shopping-bag"></i> Browse Top Deals
+                    </a>
+                    <a href="#blog-section" class="bg-slate-800 hover:bg-slate-750 text-white font-medium border border-slate-750 px-8 py-3.5 rounded-xl transition duration-150 text-center flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-book-open"></i> Read Buyer Guides
+                    </a>
+                </div>
+            </div>
+            <!-- Interactive Highlight Box / Floating Cards -->
+            <div class="lg:col-span-5 relative hidden lg:block">
+                <div class="absolute -top-12 -left-12 w-64 h-64 bg-amber-500/10 rounded-full filter blur-3xl"></div>
+                <div class="relative bg-slate-850/60 backdrop-blur-md border border-slate-700/50 p-6 rounded-2xl shadow-2xl">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-xs font-bold text-amber-400 uppercase tracking-wider">Top Pick of the Week</span>
+                        <div class="flex gap-1 text-xs text-amber-400">
+                            <i class="fa-solid fa-star"></i>
+                            <i class="fa-solid fa-star"></i>
+                            <i class="fa-solid fa-star"></i>
+                            <i class="fa-solid fa-star"></i>
+                            <i class="fa-solid fa-star"></i>
+                        </div>
+                    </div>
+                    <!-- Dynamically populated featured item -->
+                    <div id="hero-featured-container">
+                        <!-- Loading spinner / content placeholder -->
+                        <div class="animate-pulse space-y-4">
+                            <div class="bg-slate-750 h-48 w-full rounded-xl"></div>
+                            <div class="h-4 bg-slate-750 rounded w-2/3"></div>
+                            <div class="h-3 bg-slate-750 rounded w-full"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- MAIN PRODUCT & AFFILIATE LISTING SECTION -->
+    <main id="products-section" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <!-- Section Header -->
+        <div class="flex flex-col md:flex-row items-start md:items-end justify-between gap-6 mb-10">
+            <div>
+                <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">Our Curated Best Sellers & Smart Picks</h2>
+                <p class="text-slate-500 mt-1">Refined by specifications, ratings, and genuine customer feedback. All eligible for Amazon Prime.</p>
+            </div>
+            <!-- Category Filtering -->
+            <div id="categories-container" class="flex flex-wrap gap-2">
+                <!-- Javascript will inject filter buttons here -->
+            </div>
+        </div>
+
+        <!-- Filter / Search Tools (Mobile Compatible) -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col md:flex-row gap-4 justify-between items-center mb-8">
+            <div class="relative w-full md:w-96">
+                <input type="text" id="grid-search-input" placeholder="Search over highly rated items..." class="w-full bg-slate-50 border border-slate-200 pl-10 pr-4 py-2.5 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            </div>
+            <div class="flex items-center gap-3 w-full md:w-auto justify-end">
+                <label for="sort-select" class="text-xs font-bold uppercase text-slate-400 tracking-wider whitespace-nowrap">Sort By</label>
+                <select id="sort-select" class="bg-slate-50 border border-slate-200 text-sm rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-amber-500 focus:outline-none cursor-pointer">
+                    <option value="popular">Most Popular</option>
+                    <option value="price-low">Price: Low to High</option>
+                    <option value="price-high">Price: High to Low</option>
+                    <option value="rating">Highest Rated</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- PRODUCT GRID -->
+        <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <!-- Dynamic products injected here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="no-products-state" class="hidden text-center py-20 bg-white rounded-2xl border border-slate-100 shadow-sm mt-8">
+            <div class="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center text-amber-500 text-xl mx-auto mb-4">
+                <i class="fa-solid fa-box-open"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900">No matching products</h3>
+            <p class="text-slate-500 mt-1">Try resetting your filters or narrowing down your search keyword.</p>
+        </div>
+    </main>
+
+    <!-- COMPARISON TRAY DRAW-OUT (DOCK AT BOTTOM) -->
+    <div id="comparison-drawer" class="fixed bottom-0 left-0 right-0 bg-slate-900 text-white z-50 border-t border-slate-800 shadow-2xl translate-y-full transition-transform duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-amber-500 text-slate-950 p-2 rounded-xl">
+                    <i class="fa-solid fa-scale-balanced"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-sm">Product Comparison Tool</h4>
+                    <p class="text-xs text-slate-400">Compare specifications, ratings, and pricing side-by-side.</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4 w-full md:w-auto justify-end">
+                <div id="comparison-avatars" class="flex gap-2">
+                    <!-- Javascript will inject compared item tiny images -->
+                </div>
+                <button id="compare-btn" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-6 py-2.5 rounded-xl text-sm transition duration-150 shadow-md">Compare Now</button>
+                <button id="clear-compare-btn" class="text-slate-400 hover:text-white text-xs underline decoration-dotted">Clear All</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- COMPARISON MODAL -->
+    <div id="comparison-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-5xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between border-b border-slate-100 p-6">
+                <div>
+                    <h3 class="text-xl font-bold text-slate-950">Side-by-Side Comparison</h3>
+                    <p class="text-xs text-slate-500 mt-1">We evaluate criteria so you can make an educated choice.</p>
+                </div>
+                <button id="close-compare-modal-btn" class="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <!-- Modal Content (Scrollable Grid) -->
+            <div class="overflow-y-auto p-6" id="comparison-table-container">
+                <!-- Javascript builds dynamic comparison matrix here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- BLOG & BUYING GUIDES SECTION -->
+    <section id="blog-section" class="bg-slate-100/70 border-y border-slate-200/50 py-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-2xl mx-auto mb-12">
+                <h2 class="text-3xl font-extrabold text-slate-950 tracking-tight">Expert Buying Guides</h2>
+                <p class="text-slate-500 mt-2">Comprehensive reviews, detailed specifications analyses, and lists of high-quality products directly from Amazon.</p>
+            </div>
+
+            <!-- BLOG ARTICLE GRID -->
+            <div id="blog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Blog cards injected dynamically -->
+            </div>
+        </div>
+    </section>
+
+    <!-- DETAILED BLOG POST MODAL (SPA View) -->
+    <div id="blog-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
+            <!-- Header -->
+            <div class="flex items-center justify-between border-b border-slate-100 p-6 bg-slate-50">
+                <div class="flex items-center gap-2">
+                    <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Expert Guide</span>
+                    <span id="blog-modal-date" class="text-xs text-slate-500">October 24, 2023</span>
+                </div>
+                <button id="close-blog-modal-btn" class="text-slate-400 hover:text-slate-600 bg-slate-200 hover:bg-slate-300 p-2 rounded-full transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <!-- Article Scroll Area -->
+            <div class="overflow-y-auto p-8" id="blog-modal-content">
+                <!-- Dynamically written blog post with custom affiliate embeds -->
+            </div>
+        </div>
+    </div>
+
+    <!-- PRODUCT DETAIL QUICKVIEW MODAL -->
+    <div id="product-modal" class="fixed inset-0 bg-slate-900/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="flex justify-end p-4 border-b border-slate-100">
+                <button id="close-product-modal-btn" class="text-slate-400 hover:text-slate-600 bg-slate-100 p-1.5 rounded-full">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="overflow-y-auto p-6 md:p-8" id="product-modal-content">
+                <!-- Dynamic Content injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ABOUT SECTION -->
+    <section id="about-section" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div class="bg-slate-900 text-white rounded-3xl p-8 md:p-16 relative overflow-hidden shadow-xl">
+            <div class="absolute inset-0 bg-[radial-gradient(ellipse_60%_60%_at_100%_0%,rgba(245,158,11,0.15),transparent)]"></div>
+            <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                <div class="lg:col-span-7 space-y-6">
+                    <h3 class="text-3xl font-extrabold tracking-tight">Who We Are & Why You Can Trust Us</h3>
+                    <p class="text-slate-300">
+                        At SmartChoice, our mission is straightforward: to help you make informed buying decisions. We track prices, study customer sentiment, and leverage real-world testing to recommend only the finest gear directly on Amazon. 
+                    </p>
+                    <p class="text-slate-300">
+                        We don't accept sponsorships or cash payments from companies in exchange for positive remarks. Every item is verified on its merit. When you buy using our affiliate link, we receive a small, transparent commission from Amazon, helping us fuel future reviews and purchase newer gears for testing!
+                    </p>
+                    <div class="flex flex-wrap gap-6 pt-2">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-500">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <span class="text-sm font-semibold">100% Honest Rating</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-500">
+                                <i class="fa-solid fa-bolt"></i>
+                            </div>
+                            <span class="text-sm font-semibold">Updated Pricing Daily</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-amber-500/15 flex items-center justify-center text-amber-500">
+                                <i class="fa-solid fa-user-check"></i>
+                            </div>
+                            <span class="text-sm font-semibold">No Sponsor Mandates</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:col-span-5 bg-slate-800/60 p-8 rounded-2xl border border-slate-700/60 space-y-6">
+                    <h4 class="font-bold text-amber-400 uppercase tracking-widest text-xs">Affiliate Disclosure</h4>
+                    <p class="text-xs text-slate-300 leading-relaxed">
+                        SmartChoice is a participant in the Amazon Services LLC Associates Program, an affiliate advertising program designed to provide a means for sites to earn advertising fees by advertising and linking to Amazon.com. Amazon and the Amazon logo are trademarks of Amazon.com, Inc. or its affiliates.
+                    </p>
+                    <div class="border-t border-slate-700 pt-4">
+                        <span class="block text-xs font-bold text-white mb-2">Configure Amazon Tag</span>
+                        <p class="text-[11px] text-slate-400">Add your own Amazon tag in the utility header on top to test customized routing instantly.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-950 text-slate-400 py-16 border-t border-slate-900">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-12">
+            <div class="space-y-4">
+                <a href="#" class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center text-slate-950 font-black text-lg">
+                        S
+                    </div>
+                    <span class="text-lg font-bold text-white tracking-tight">SmartChoice</span>
+                </a>
+                <p class="text-xs leading-relaxed">
+                    Premium affiliate hub designed for fast discovery of premium smart electronics, fitness equipment, and innovative tech on Amazon.
+                </p>
+            </div>
+            <div>
+                <h5 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Trending Categories</h5>
+                <ul class="space-y-2 text-xs">
+                    <li><a href="#products-section" class="hover:text-amber-500 transition filter-btn-direct" data-category="smart-home">Smart Home Tech</a></li>
+                    <li><a href="#products-section" class="hover:text-amber-500 transition filter-btn-direct" data-category="audio">Audio & Entertainment</a></li>
+                    <li><a href="#products-section" class="hover:text-amber-500 transition filter-btn-direct" data-category="fitness">Fitness & Health</a></li>
+                    <li><a href="#products-section" class="hover:text-amber-500 transition filter-btn-direct" data-category="kitchen">Modern Kitchen</a></li>
+                </ul>
+            </div>
+            <div>
+                <h5 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Help & Info</h5>
+                <ul class="space-y-2 text-xs">
+                    <li><a href="#about-section" class="hover:text-amber-500 transition">About SmartChoice</a></li>
+                    <li><a href="#about-section" class="hover:text-amber-500 transition">Affiliate Disclosure</a></li>
+                    <li><a href="#" class="hover:text-amber-500 transition">Privacy Policy</a></li>
+                    <li><a href="#" class="hover:text-amber-500 transition">Terms of Use</a></li>
+                </ul>
+            </div>
+            <div>
+                <h5 class="text-white font-bold text-sm uppercase tracking-wider mb-4">Subscribe to Deals</h5>
+                <p class="text-xs text-slate-400 mb-3">Get notifications of flash price cuts directly in your inbox.</p>
+                <div class="flex">
+                    <input type="email" placeholder="Your Email" class="bg-slate-900 border border-slate-800 text-xs px-3 py-2 rounded-l-md w-full focus:outline-none focus:ring-1 focus:ring-amber-500 text-white">
+                    <button class="bg-amber-500 text-slate-950 text-xs font-bold px-3 py-2 rounded-r-md hover:bg-amber-400 transition shrink-0">Join</button>
+                </div>
+            </div>
+        </div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-8 border-t border-slate-900/60 text-center text-xs text-slate-600 flex flex-col md:flex-row items-center justify-between gap-4">
+            <p>&copy; <span id="current-year">2023</span> SmartChoice Hub. All rights reserved.</p>
+            <p class="flex items-center gap-1">Designed for high-converting Amazon affiliate programs <i class="fa-solid fa-heart text-amber-500"></i></p>
+        </div>
+    </footer>
+
+    <!-- LOGIC SCRIPTS -->
+    <script src="products.js"></script>
+    <script src="blog.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

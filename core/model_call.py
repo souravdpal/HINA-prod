@@ -1,58 +1,64 @@
 """
-ai_call.py — Advanced Groq-first AI calling module
-=====================================================
+ai_registry.py — Multi-Provider Tiered AI Model Registry & Caller
+===================================================================
 
-A single-file, dependency-light orchestration layer around the Groq API
-(with OpenRouter as a last-resort backup), built for real production use:
+A single-file orchestration layer across FOUR providers:
 
-  * Model registry with per-task priority ordering + auto-failover
-  * Rate-limit aware (reads Groq's x-ratelimit-* headers, honours retry-after)
-  * Strict/robust JSON mode with multi-stage sanitization + repair + re-ask
-  * Modes: summarizer / code / code_files / agent / human / command
-  * Injections: memory, agent-to-agent context, retry-with-error (for the
-    "ran in docker, it failed, send the error back" loop)
-  * code_files mode emits a strict, machine-parseable block format so an
-    MCP server (or anything else) can regex-extract files and write them
-    to disk / run them in a container.
-  * OpenRouter fallback only kicks in when every Groq candidate for that
-    task has been exhausted (all failed or all rate-limited) — it is not
-    used "all the time" by design.
+    groq        (env keys: api1, api2, api3, api4, api5)
+    gemini      (env keys: gem1, gem2)                -> google-genai SDK
+    github      (env key : tk)                        -> GitHub Models (PAT)
+    sambanova   (env keys: nova1, nova2)               -> OpenAI-compatible REST
+
+Instead of registering models "by provider", every provider is broken into
+three TIERS:
+
+    PRO    -> heaviest / smartest models available on that provider
+    MID    -> balanced models (good default for code)
+    LOW    -> fast/cheap models (chit-chat, MCP/JSON formatting, throwaway calls)
+
+Every model entry knows its own provider (stored as the dict key one level
+up), so once the router picks a model it already knows which provider/client
+to dispatch to and in which request format.
+
+Modes
+-----
+    Mode.COMPLEX      -> PRO tier only (hardest reasoning tasks)
+    Mode.CODE /
+    Mode.CODE_FILES   -> MID tier first, falls back to PRO
+    Mode.AGENT         -> MID tier first, falls back to PRO
+    Mode.SUMMARIZER    -> LOW tier first, falls back to MID
+    Mode.HUMAN          -> LOW tier only  (fast, human chat-style replies)
+    Mode.COMMAND        -> LOW tier only  (MCP/tool JSON formatting, groq/flash-lite style)
+
+Failover priority (IMPORTANT, per spec)
+----------------------------------------
+    1) Change MODEL first (walk the tier's model list, possibly across
+       providers) before ever touching API keys.
+    2) Only once EVERY model in the candidate list has been tried and
+       failed/rate-limited do we rotate to the next API key (for providers
+       that have more than one key) and run the whole candidate list again.
+
+SambaNova note
+--------------
+SambaNova has **no access to production-tier models** on this account, so
+its PRO tier is intentionally left empty. It only contributes MID/LOW
+candidates.
 
 Usage
 -----
-    from ai_call import AICaller, Mode, Format
+    from ai_registry import AICaller, Mode, Format
 
-    ai = AICaller(groq_api_key="...", openrouter_api_key="...")
+    ai = AICaller()
 
     result = ai.call(
-        prompt="You are a senior Python engineer. Be terse and precise.",
-        query="Write a function that reverses a linked list.",
-        mode=Mode.CODE,
-        format=Format.TEXT,
+        prompt="You are a senior engineer.",
+        query="Design a distributed rate limiter.",
+        mode=Mode.COMPLEX,
     )
-    print(result.text)
+    print(result.text, result.provider, result.model_used)
 
-    # JSON mode, robust:
-    result = ai.call(
-        prompt="You are a JSON API. Only ever return the requested schema.",
-        query="Give me a list of 3 planets with name and moons count.",
-        format=Format.JSON,
-        json_schema_hint={"planets": [{"name": "str", "moons": "int"}]},
-    )
-    print(result.data)   # already-parsed python object
-
-    # Retry-with-error injection, after your docker runner fails:
-    result = ai.call(
-        prompt="You are a senior Python engineer.",
-        query="Fix the script so it runs correctly in the container.",
-        mode=Mode.CODE_FILES,
-        retry_injection={
-            "previous_code": result.code_files,
-            "error": "Traceback (most recent call last): ... ZeroDivisionError",
-        },
-    )
-
-Requires: `requests` only (no groq/openai SDK dependency, so it stays portable).
+Requires: `requests` (always), `google-genai` (only if you actually hit a
+gemini candidate — imported lazily so the rest of the module works without it).
 """
 
 from __future__ import annotations
@@ -64,39 +70,30 @@ import time
 import logging
 import dataclasses
 from enum import Enum
-from typing import Any, Callable, Optional, Union
+from typing import Any, Optional, Union
 
 import requests
 
 try:
     from dotenv import load_dotenv
-    load_dotenv()  # pulls in .env (api1..api5, oapi1..oapi5, etc.) if present
+    load_dotenv()
 except ImportError:
     def load_dotenv(*a, **k):
         return False
-    logging.getLogger("ai_call").warning(
-        "python-dotenv not installed — .env will not be auto-loaded. "
-        "Run: pip install python-dotenv"
-    )
 
-try:
-    from core.hina_sdk import send_state
-except ImportError:
-    try:
-        from hina_sdk import send_state  # fallback if not packaged under core/
-    except ImportError:
-        send_state = None  # live-status bridge not available; degrade silently
-
-# --------------------------------------------------------------------------- #
-# Logging
-# --------------------------------------------------------------------------- #
-
-logger = logging.getLogger("ai_call")
+logger = logging.getLogger("ai_registry")
 if not logger.handlers:
     _h = logging.StreamHandler()
-    _h.setFormatter(logging.Formatter("[ai_call] %(levelname)s: %(message)s"))
+    _h.setFormatter(logging.Formatter("[ai_registry] %(levelname)s: %(message)s"))
     logger.addHandler(_h)
 logger.setLevel(os.environ.get("AI_CALL_LOG_LEVEL", "INFO"))
+
+# Silence the very chatty underlying libraries (httpx, google-genai, urllib3)
+# unless the caller explicitly asks for debug output. These are what were
+# printing the "HTTP Request: ... 500" lines you were seeing.
+if os.environ.get("AI_CALL_LOG_LEVEL", "INFO").upper() != "DEBUG":
+    for _noisy in ("httpx", "httpcore", "google_genai", "google.genai", "urllib3"):
+        logging.getLogger(_noisy).setLevel(logging.WARNING)
 
 
 # --------------------------------------------------------------------------- #
@@ -104,12 +101,13 @@ logger.setLevel(os.environ.get("AI_CALL_LOG_LEVEL", "INFO"))
 # --------------------------------------------------------------------------- #
 
 class Mode(str, Enum):
+    COMPLEX = "complex"          # heavy pro-only reasoning
     SUMMARIZER = "summarizer"
     CODE = "code"
     CODE_FILES = "code_files"
     AGENT = "agent"
     HUMAN = "human"
-    COMMAND = "command"
+    COMMAND = "command"          # mcp / tool / json formatting chatter
 
 
 class Format(str, Enum):
@@ -117,162 +115,144 @@ class Format(str, Enum):
     JSON = "json"
 
 
-class TaskType(str, Enum):
-    """Used to pick which priority list in the model registry to use."""
-    GENERAL = "general"
-    CODE = "code"
-    JSON = "json"
-    SUMMARY = "summary"
-    AGENT = "agent"
-    FAST = "fast"
+class Tier(str, Enum):
+    PRO = "pro"
+    MID = "mid"
+    LOW = "low"
+
+
+# Which tiers get tried, and in what order, per mode.
+MODE_TIER_ORDER: dict[Mode, list[Tier]] = {
+    Mode.COMPLEX:    [Tier.PRO],
+    Mode.CODE:        [Tier.MID, Tier.PRO],
+    Mode.CODE_FILES:  [Tier.MID, Tier.PRO],
+    Mode.AGENT:        [Tier.MID, Tier.PRO],
+    Mode.SUMMARIZER:   [Tier.LOW, Tier.MID],
+    Mode.HUMAN:         [Tier.LOW],
+    Mode.COMMAND:       [Tier.LOW],
+}
+
+# Order providers are tried in, for a given tier (first = highest priority).
+PROVIDER_ORDER: list[str] = ["groq", "gemini", "github", "sambanova"]
 
 
 # --------------------------------------------------------------------------- #
-# Model Registry
+# Model spec + the tiered registry
 # --------------------------------------------------------------------------- #
 
 @dataclasses.dataclass
 class ModelSpec:
     id: str
-    supports_json_mode: bool = False   # true native `response_format: json_object` support
-    rpm: int = 30
-    rpd: int = 1000
-    tpm: int = 6000
-    tpd: int = 500_000
+    provider: str
+    tier: Tier
+    supports_json_mode: bool = False
     good_for_code: bool = False
-    good_for_agent: bool = False
     notes: str = ""
 
 
 class ModelRegistry:
     """
-    Central place where every usable Groq model lives, along with its
-    rate-limit envelope (from Groq's docs) and capability flags.
-
-    Priority lists are ordered best -> worst per TaskType. AICaller walks
-    this list, skipping any model that is currently marked as cooling down
-    (rate limited) or that just failed, and falls to the next.
+    PROVIDERS[provider_name][tier] -> list[str] of model ids (best first).
+    MODELS[model_id] -> ModelSpec (flattened lookup so picking a model id
+    always tells you the provider + tier too).
     """
 
-    MODELS: dict[str, ModelSpec] = {
-        "llama-3.3-70b-versatile": ModelSpec(
-            id="llama-3.3-70b-versatile", supports_json_mode=True,
-            rpm=30, rpd=1000, tpm=12000, tpd=100_000,
-            good_for_code=True, good_for_agent=True,
-            notes="Best all-round reasoning/coding model on Groq's free tier.",
-        ),
-        "meta-llama/llama-4-scout-17b-16e-instruct": ModelSpec(
-            id="meta-llama/llama-4-scout-17b-16e-instruct", supports_json_mode=True,
-            rpm=30, rpd=1000, tpm=30000, tpd=500_000,
-            good_for_code=True, good_for_agent=True,
-            notes="Large TPM budget, good second choice.",
-        ),
-        "openai/gpt-oss-120b": ModelSpec(
-            id="openai/gpt-oss-120b", supports_json_mode=True,
-            rpm=30, rpd=1000, tpm=8000, tpd=200_000,
-            good_for_code=True, good_for_agent=True,
-            notes="Strong reasoning, smaller TPM budget -> keep as backup.",
-        ),
-        "openai/gpt-oss-20b": ModelSpec(
-            id="openai/gpt-oss-20b", supports_json_mode=True,
-            rpm=30, rpd=1000, tpm=8000, tpd=200_000,
-            good_for_code=True,
-            notes="Lighter/faster oss model.",
-        ),
-        "qwen/qwen3-32b": ModelSpec(
-            id="qwen/qwen3-32b", supports_json_mode=False,
-            rpm=60, rpd=1000, tpm=6000, tpd=500_000,
-            good_for_code=True,
-            notes="High RPM, no native JSON mode -> must sanitize.",
-        ),
-        "qwen/qwen3.6-27b": ModelSpec(
-            id="qwen/qwen3.6-27b", supports_json_mode=False,
-            rpm=30, rpd=1000, tpm=8000, tpd=200_000,
-            notes="No native JSON mode -> must sanitize.",
-        ),
-        "llama-3.1-8b-instant": ModelSpec(
-            id="llama-3.1-8b-instant", supports_json_mode=True,
-            rpm=30, rpd=14400, tpm=6000, tpd=500_000,
-            notes="Fast + huge RPD budget. Great for summarizer/fast tasks.",
-        ),
-
-
-        "groq/compound": ModelSpec(
-            id="groq/compound", supports_json_mode=False,
-            rpm=30, rpd=250, tpm=70000, tpd=1_000_000,
-            good_for_agent=True,
-            notes="Agentic/tool-use oriented, huge TPM but tiny RPD -> last resort.",
-        ),
-        "groq/compound-mini": ModelSpec(
-            id="groq/compound-mini", supports_json_mode=False,
-            rpm=30, rpd=250, tpm=70000, tpd=1_000_000,
-            good_for_agent=True,
-            notes="Lighter agentic model, same RPD ceiling.",
-        ),
+    PROVIDERS: dict[str, dict[Tier, list[str]]] = {
+        "groq": {
+            Tier.PRO: [
+                "llama-3.3-70b-versatile",
+                "openai/gpt-oss-120b",
+            ],
+            Tier.MID: [
+                "meta-llama/llama-4-scout-17b-16e-instruct",
+                "qwen/qwen3-32b",
+            ],
+            Tier.LOW: [
+                "llama-3.1-8b-instant",
+                "openai/gpt-oss-20b",
+            ],
+        },
+        "gemini": {
+            Tier.PRO: [
+                "gemini-3.0-pro",
+            ],
+            Tier.MID: [
+                "gemini-3.5-flash",
+            ],
+            Tier.LOW: [
+                "gemini-3.5-flash-lite",
+            ],
+        },
+        "github": {
+            Tier.PRO: [
+                "openai/gpt-4.1",
+                "openai/o1",
+            ],
+            Tier.MID: [
+                "meta/Meta-Llama-3.1-70B-Instruct",
+                "mistral-ai/Mistral-Large-2411",
+            ],
+            Tier.LOW: [
+                "openai/gpt-4o-mini",
+                "microsoft/Phi-4-mini-instruct",
+            ],
+        },
+        "sambanova": {
+            Tier.PRO: [],  # NOTE: account has no production-model access on SambaNova
+            Tier.MID: [
+                "DeepSeek-V3.1",
+                "DeepSeek-V3.2",
+                "MiniMax-M2.7",
+            ],
+            Tier.LOW: [
+                "Meta-Llama-3.3-70B-Instruct",
+                "gpt-oss-120b",
+                "gemma-4-31B-it",
+            ],
+        },
     }
 
-    # Priority order (best -> worst) per task type. First entry is tried first.
-    PRIORITIES: dict[TaskType, list[str]] = {
-        TaskType.GENERAL: [
-            "qwen/qwen3.6-27b",
-            "meta-llama/llama-4-scout-17b-16e-instruct",
-            "openai/gpt-oss-120b",
-            "qwen/qwen3-32b",
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant"
-        ],
-        TaskType.CODE: [
-            "llama-3.3-70b-versatile",
-            "openai/gpt-oss-120b",
-            "meta-llama/llama-4-scout-17b-16e-instruct",
-            "qwen/qwen3-32b",
-            "openai/gpt-oss-20b",
-        ],
-        TaskType.JSON: [
-            # native json-mode models first — far fewer sanitization failures
-            "llama-3.3-70b-versatile",
-            "meta-llama/llama-4-scout-17b-16e-instruct",
-            "openai/gpt-oss-120b",
-            "openai/gpt-oss-20b",
-            "llama-3.1-8b-instant",
-            "qwen/qwen3-32b",       # no native support, sanitizer works harder
-        ],
-        TaskType.SUMMARY: [
-            "qwen/qwen3.6-27b",
-            "meta-llama/llama-4-scout-17b-16e-instruct",
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant",
-            
-            
-            
-        ],
-        TaskType.AGENT: [
-            "llama-3.3-70b-versatile",
-            "groq/compound",
-            "groq/compound-mini",
-            "meta-llama/llama-4-scout-17b-16e-instruct",
-        ],
-        TaskType.FAST: [
-            "llama-3.1-8b-instant",
-            "qwen/qwen3-32b",
-            "meta-llama/llama-4-scout-17b-16e-instruct",
-        ],
-    }
+    MODELS: dict[str, ModelSpec] = {}
 
     @classmethod
-    def priority_list(cls, task: TaskType) -> list[ModelSpec]:
-        ids = cls.PRIORITIES.get(task, cls.PRIORITIES[TaskType.GENERAL])
-        return [cls.MODELS[i] for i in ids if i in cls.MODELS]
+    def _build(cls):
+        if cls.MODELS:
+            return
+        json_native = {
+            "llama-3.3-70b-versatile", "openai/gpt-oss-120b",
+            "meta-llama/llama-4-scout-17b-16e-instruct",
+            "llama-3.1-8b-instant", "openai/gpt-oss-20b",
+            "openai/gpt-4.1", "openai/o1", "openai/gpt-4o-mini",
+        }
+        for provider, tiers in cls.PROVIDERS.items():
+            for tier, ids in tiers.items():
+                for mid in ids:
+                    cls.MODELS[mid] = ModelSpec(
+                        id=mid,
+                        provider=provider,
+                        tier=tier,
+                        supports_json_mode=mid in json_native,
+                        good_for_code=tier in (Tier.MID, Tier.PRO),
+                    )
+
+    @classmethod
+    def candidates(cls, mode: Mode) -> list[ModelSpec]:
+        """Flattened, priority-ordered candidate list for a mode:
+        tier order (per mode) outer loop, provider order inner loop."""
+        cls._build()
+        out: list[ModelSpec] = []
+        for tier in MODE_TIER_ORDER.get(mode, [Tier.LOW]):
+            for provider in PROVIDER_ORDER:
+                for mid in cls.PROVIDERS.get(provider, {}).get(tier, []):
+                    out.append(cls.MODELS[mid])
+        return out
 
 
 # --------------------------------------------------------------------------- #
-# Cooldown tracker (in-memory rate-limit awareness)
+# Cooldown tracker
 # --------------------------------------------------------------------------- #
 
 class CooldownTracker:
-    """Keeps track of which model IDs are currently rate-limited, based on
-    response headers / 429s, so we don't keep hammering a dead model."""
-
     def __init__(self):
         self._until: dict[str, float] = {}
 
@@ -291,7 +271,6 @@ class CooldownTracker:
                 return float(ra)
             except ValueError:
                 pass
-        # fallback: try x-ratelimit-reset-tokens / requests strings like "7.66s" or "2m59.56s"
         for key in ("x-ratelimit-reset-tokens", "x-ratelimit-reset-requests"):
             v = headers.get(key)
             if v:
@@ -315,14 +294,11 @@ class CooldownTracker:
 # --------------------------------------------------------------------------- #
 
 class JSONSanitizer:
-    """Multi-stage strategy to turn a possibly-messy LLM string into valid JSON."""
-
     FENCE_RE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL | re.IGNORECASE)
 
     @classmethod
     def extract_and_parse(cls, raw: str) -> Optional[Any]:
-        candidates = cls._candidates(raw)
-        for c in candidates:
+        for c in cls._candidates(raw):
             parsed = cls._try_parse(c)
             if parsed is not None:
                 return parsed
@@ -331,20 +307,12 @@ class JSONSanitizer:
     @classmethod
     def _candidates(cls, raw: str) -> list[str]:
         raw = raw.strip()
-        out = []
-
-        # 1. whole string as-is
-        out.append(raw)
-
-        # 2. inside ```json fences
+        out = [raw]
         for m in cls.FENCE_RE.finditer(raw):
             out.append(m.group(1).strip())
-
-        # 3. first {...} or [...] balanced-looking span
         span = cls._largest_bracket_span(raw)
         if span:
             out.append(span)
-
         return out
 
     @staticmethod
@@ -387,12 +355,10 @@ class JSONSanitizer:
     def _try_parse(cls, s: str) -> Optional[Any]:
         if not s:
             return None
-        # direct
         try:
             return json.loads(s)
         except json.JSONDecodeError:
             pass
-        # common repairs
         repaired = cls._repair(s)
         try:
             return json.loads(repaired)
@@ -402,42 +368,19 @@ class JSONSanitizer:
     @staticmethod
     def _repair(s: str) -> str:
         s = s.strip()
-        # remove trailing commas before } or ]
         s = re.sub(r",\s*([}\]])", r"\1", s)
-        # convert python-style single quotes to double (best-effort, only if
-        # it doesn't already look properly double-quoted)
         if s.count('"') < s.count("'"):
             s = re.sub(r"(?<![\\])'", '"', s)
-        # strip trailing text after the last closing bracket
         last_curly = s.rfind("}")
         last_square = s.rfind("]")
         last = max(last_curly, last_square)
         if last != -1:
             s = s[: last + 1]
-        # remove // and # style comments some models add
         s = re.sub(r"//.*?$", "", s, flags=re.MULTILINE)
         s = re.sub(r"(?m)^\s*#.*$", "", s)
-        # replace NaN/Infinity (invalid JSON) with null
         s = re.sub(r"\bNaN\b", "null", s)
         s = re.sub(r"\b-?Infinity\b", "null", s)
         return s
-
-
-# --------------------------------------------------------------------------- #
-# Result container
-# --------------------------------------------------------------------------- #
-
-@dataclasses.dataclass
-class AIResult:
-    ok: bool
-    text: str = ""
-    data: Any = None                       # parsed JSON, if format=json
-    code_files: Optional[dict[str, str]] = None   # {filename: content} if CODE_FILES mode
-    model_used: Optional[str] = None
-    backend: str = "groq"                  # "groq" | "openrouter"
-    attempts: list[dict] = dataclasses.field(default_factory=list)
-    error: Optional[str] = None
-    raw_response: Optional[dict] = None
 
 
 # --------------------------------------------------------------------------- #
@@ -446,25 +389,18 @@ class AIResult:
 
 CODE_FILE_START = "--------start of code------"
 CODE_FILE_END = "-----end of code------"
-
-# Individual file header inside the block, e.g.:
-# ### FILE: app.py
 FILE_HEADER_RE = re.compile(r"^#{1,3}\s*FILE:\s*(.+?)\s*$", re.MULTILINE)
 
 
 def build_code_files_instruction() -> str:
-    """System-level instruction appended when mode == CODE_FILES so the
-    model emits a strictly parseable multi-file block."""
     return (
         "\n\nWhen you produce code, you MUST wrap ALL files between the exact "
         f"markers `{CODE_FILE_START}` and `{CODE_FILE_END}` (each on its own "
         "line, verbatim, no markdown fences around them). Inside that block, "
         "start every file with a line `### FILE: <relative/path/filename.ext>` "
         "followed by the raw file content (no backtick fences). Multiple files "
-        "are allowed, one after another, each with its own `### FILE:` header. "
-        "Do not put any explanation inside the block — only the marker lines, "
-        "file headers, and raw code. You may add explanation before or after "
-        "the block."
+        "are allowed, each with its own `### FILE:` header. No explanation "
+        "inside the block — only marker lines, headers, and raw code."
     )
 
 
@@ -482,8 +418,7 @@ def parse_code_files(text: str) -> Optional[dict[str, str]]:
         fname = h.group(1).strip()
         content_start = h.end()
         content_end = headers[i + 1].start() if i + 1 < len(headers) else len(block)
-        content = block[content_start:content_end].strip("\n")
-        files[fname] = content
+        files[fname] = block[content_start:content_end].strip("\n")
     return files
 
 
@@ -492,38 +427,35 @@ def parse_code_files(text: str) -> Optional[dict[str, str]]:
 # --------------------------------------------------------------------------- #
 
 def shape_system_prompt(base_prompt: str, mode: Mode) -> str:
-    mode_addenda = {
+    addenda = {
+        Mode.COMPLEX: (
+            "\n\nMode: COMPLEX. This is a hard reasoning task — think it through "
+            "carefully, check your own logic, and prefer correctness over speed."
+        ),
         Mode.SUMMARIZER: (
             "\n\nMode: SUMMARIZER. Be concise and information-dense. No filler, "
-            "no restating the question, no meta-commentary about summarizing."
-            "you summarize data given consise points"
+            "no restating the question, no meta-commentary."
         ),
         Mode.CODE: (
-            "\n\nMode: CODE. Return code in a single fenced block like:\n"
-            "```python\n<code here>\n```\n"
-            "Give a short explanation only if it materially helps; otherwise "
-            "just the fenced code block."
+            "\n\nMode: CODE. Return code in a single fenced block. Give a short "
+            "explanation only if it materially helps; otherwise just the code."
         ),
         Mode.CODE_FILES: build_code_files_instruction(),
         Mode.AGENT: (
             "\n\nMode: AGENT. You are one agent in a multi-agent pipeline. "
             "Assume your output may be consumed by another agent or automated "
-            "system, not a human directly. Be structured and unambiguous. "
-            "State assumptions explicitly."
+            "system. Be structured and unambiguous. State assumptions explicitly."
         ),
         Mode.HUMAN: (
             "\n\nMode: HUMAN. Write for a person reading in a chat UI: warm, "
-            "you are woman a girl name hina you love sourav so much and crush on him secrately!"
-            "use emotions talk porperly use  love , hate , care , anger , angusih , possiveness, advicing, caring , needy"
+            "natural, and to the point."
         ),
         Mode.COMMAND: (
-            "\n\nMode: COMMAND. Target environment: Arch Linux. When asked for "
-            "shell commands, give exact, runnable commands (pacman/yay-aware), "
-            "one command per line, no explanation unless asked. Never invent "
-            "flags that don't exist."
+            "\n\nMode: COMMAND. You are formatting output for an MCP/tool "
+            "pipeline. Be fast, terse, and exact — output only what's asked."
         ),
     }
-    return base_prompt + mode_addenda.get(mode, "")
+    return base_prompt + addenda.get(mode, "")
 
 
 def build_injections_block(
@@ -531,55 +463,62 @@ def build_injections_block(
     agent_injection: Optional[Union[str, dict]] = None,
     retry_injection: Optional[dict] = None,
 ) -> str:
-    """Turns the various injection kwargs into a single context block
-    appended to the user query."""
     parts = []
-
     if memory:
         mem_str = memory if isinstance(memory, str) else json.dumps(memory, ensure_ascii=False, indent=2)
         parts.append(f"### MEMORY (prior context you should use)\n{mem_str}")
-
     if agent_injection:
         agent_str = agent_injection if isinstance(agent_injection, str) else json.dumps(agent_injection, ensure_ascii=False, indent=2)
-        parts.append(f"### UPSTREAM AGENT OUTPUT (input from another agent)\n{agent_str}")
-
+        parts.append(f"### UPSTREAM AGENT OUTPUT\n{agent_str}")
     if retry_injection:
         prev_code = retry_injection.get("previous_code")
         error = retry_injection.get("error", "")
-        prev_str = (
-            json.dumps(prev_code, ensure_ascii=False, indent=2)
-            if isinstance(prev_code, dict)
-            else str(prev_code or "")
-        )
+        prev_str = json.dumps(prev_code, ensure_ascii=False, indent=2) if isinstance(prev_code, dict) else str(prev_code or "")
         parts.append(
             "### RETRY — PREVIOUS ATTEMPT FAILED\n"
-            "Your previous code was executed and it failed. Fix it.\n\n"
-            f"--- previous code ---\n{prev_str}\n\n"
-            f"--- execution error ---\n{error}\n"
+            f"--- previous code ---\n{prev_str}\n\n--- execution error ---\n{error}\n"
         )
-
     return "\n\n".join(parts)
 
 
+def _json_instruction(schema_hint: Optional[Union[dict, str]]) -> str:
+    hint = ""
+    if schema_hint:
+        hint_str = schema_hint if isinstance(schema_hint, str) else json.dumps(schema_hint, indent=2)
+        hint = (
+            f"\nSchema/shape to follow (the values below are placeholders "
+            f"showing type/shape ONLY -- never copy them literally):\n{hint_str}\n\n"
+            "RULES:\n"
+            "  1. Every value must come from the actual USER QUERY or the "
+            "provided data -- never reuse the placeholder text shown above.\n"
+            "  2. If a field's placeholder mentions 'query', copy the user's "
+            "query into it verbatim -- do not summarize, translate, or replace it.\n"
+            "  3. If a field's placeholder says a value must be one of a fixed "
+            "set (e.g. 'must be EXACTLY one of: [...]'), use one of those exact "
+            "strings and nothing else.\n"
+            "  4. Only use values that actually appear in any data provided "
+            "above -- never invent a name, id, or field value that isn't in it.\n"
+            "  5. If nothing provided actually matches the query, say so using "
+            "whatever the schema's 'none' value is (e.g. 'NONE') rather than "
+            "guessing a plausible-looking answer.\n"
+        )
+    return (
+        "\n\nOutput format: JSON ONLY. Respond with a single valid JSON value "
+        "(object or array). No markdown fences, no prose, no comments, no "
+        f"trailing commas.{hint}"
+    )
+
+
 # --------------------------------------------------------------------------- #
-# API key rotation pool (.env driven)
+# API key pools (.env driven)
 # --------------------------------------------------------------------------- #
 
 class KeyPool:
-    """
-    Round-robin API key rotator.
-
-    Reads a numbered sequence of env vars (e.g. api1, api2, ... api5 for
-    Groq, or oapi1 .. oapi5 for OpenRouter) via os.environ (populated by
-    python-dotenv from .env). When a key hits its rate limit, call
-    `rotate()` to move to the next key. Once every key in the pool has
-    been tried and is still rate-limited, `exhausted()` returns True and
-    the caller should move on (next model, or next backend entirely).
-    """
+    """Round-robin key rotator reading numbered env vars, e.g. api1..api5."""
 
     def __init__(self, prefix: str, count: int = 5, extra_first: Optional[str] = None):
         keys = []
-        if extra_first:  # e.g. a key passed directly into AICaller(...)
+        if extra_first:
             keys.append(extra_first)
         for i in range(1, count + 1):
             v = os.environ.get(f"{prefix}{i}")
@@ -587,129 +526,81 @@ class KeyPool:
                 keys.append(v)
         self.keys = keys
         self.idx = 0
-        self._tried_this_round = 0
 
     def current(self) -> Optional[str]:
-        if not self.keys:
-            return None
-        return self.keys[self.idx]
+        return self.keys[self.idx] if self.keys else None
 
     def rotate(self):
-        if not self.keys:
-            return
-        self.idx = (self.idx + 1) % len(self.keys)
-        self._tried_this_round += 1
-        logger.info(f"Rotated to next API key (#{self.idx + 1}/{len(self.keys)})")
-
-    def reset_round(self):
-        self._tried_this_round = 0
-
-    def exhausted(self) -> bool:
-        """True once we've cycled through every key in the pool without success."""
-        return len(self.keys) == 0 or self._tried_this_round >= len(self.keys)
+        if self.keys:
+            self.idx = (self.idx + 1) % len(self.keys)
 
     def __len__(self):
         return len(self.keys)
 
-    def __bool__(self):
-        return len(self.keys) > 0
+
+class SingleKey:
+    """Wraps a single env-var token (e.g. `tk` for GitHub PAT) with the same
+    interface as KeyPool so provider callers don't need to special-case it."""
+
+    def __init__(self, env_name: str):
+        v = os.environ.get(env_name)
+        self.keys = [v] if v else []
+        self.idx = 0
+
+    def current(self) -> Optional[str]:
+        return self.keys[0] if self.keys else None
+
+    def rotate(self):
+        pass  # nothing to rotate — single token
+
+    def __len__(self):
+        return len(self.keys)
 
 
 # --------------------------------------------------------------------------- #
-# Mode -> icon (used for every hina_sdk live status push)
+# Result container
 # --------------------------------------------------------------------------- #
 
-MODE_ICONS: dict[Mode, str] = {
-    Mode.SUMMARIZER: "fa-align-left",
-    Mode.CODE: "fa-code",
-    Mode.CODE_FILES: "fa-file-code",
-    Mode.AGENT: "fa-network-wired",
-    Mode.HUMAN: "fa-comment-dots",
-    Mode.COMMAND: "fa-terminal",
-}
+@dataclasses.dataclass
+class AIResult:
+    ok: bool
+    text: str = ""
+    data: Any = None
+    code_files: Optional[dict[str, str]] = None
+    model_used: Optional[str] = None
+    provider: Optional[str] = None
+    tier: Optional[str] = None
+    attempts: list[dict] = dataclasses.field(default_factory=list)
+    error: Optional[str] = None
+    raw_response: Optional[dict] = None
 
 
 # --------------------------------------------------------------------------- #
-# Main caller
+# AICaller
 # --------------------------------------------------------------------------- #
-
-def _notify(mode: "Mode", state: str, model: str):
-    """Fire-and-forget live status push via hina_sdk.send_state.
-
-    Exactly matches hina_sdk's real signature — no invented params.
-    Rules:
-      - msg    -> always just "which model is being used right now"
-      - icon   -> derived from the active mode (MODE_ICONS)
-      - text   -> always None (never overwrite the output box)
-      - voice  -> always False
-      - done   -> always False (ai_call never finalizes a run — the MCP
-                  server / caller decides when the run is actually done)
-      - color  -> not passed; hina_sdk picks its own default
-    """
-    if send_state is None:
-        return
-    icon = MODE_ICONS.get(mode, "fa-robot")
-    try:
-        send_state(
-            agent_name="AI_CALL",
-            state="Thinking....",
-            msg=f"Model: {model}",
-            icon=icon,
-            text=None,
-            voice=False,
-            done=False,
-        )
-    except Exception as e:  # never let a dead bridge break an AI call
-        logger.debug(f"hina_sdk send_state failed silently: {e}")
-
 
 class AICaller:
-    GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-    OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-    # Reasonable, small, capable free/cheap fallback models on OpenRouter.
-    OPENROUTER_FALLBACK_MODELS = [
-        "meta-llama/llama-3.3-70b-instruct",
-        "qwen/qwen-2.5-72b-instruct",
-        "mistralai/mistral-nemo",
-    ]
+    GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+    GITHUB_URL = "https://models.github.ai/inference/chat/completions"
+    SAMBANOVA_URL = "https://api.sambanova.ai/v1/chat/completions"
 
     def __init__(
         self,
-        groq_api_key: Optional[str] = None,
-        openrouter_api_key: Optional[str] = None,
-        max_retries_per_model: int = 2,
-        request_timeout: int = 60,
         temperature: float = 0.4,
         max_tokens: int = 4096,
-        key_env_prefix: str = "api",
-        openrouter_key_env_prefix: str = "oapi",
-        keys_per_pool: int = 5,
+        request_timeout: int = 60,
     ):
-        # Groq keys: api1..api5 (or however many are set) from .env, plus an
-        # optional explicit override which is tried first.
-        self.groq_keys = KeyPool(key_env_prefix, count=keys_per_pool, extra_first=groq_api_key)
-        if not self.groq_keys:
-            legacy = os.environ.get("GROQ_API_KEY")
-            if legacy:
-                self.groq_keys = KeyPool(key_env_prefix, count=keys_per_pool, extra_first=legacy)
-        if not self.groq_keys:
-            raise ValueError(
-                "No Groq API keys found. Set api1..api5 in .env (or pass "
-                "groq_api_key=... / set GROQ_API_KEY)."
-            )
-
-        # OpenRouter keys: oapi1..oapi5 from .env, plus optional override.
-        self.openrouter_keys = KeyPool(openrouter_key_env_prefix, count=keys_per_pool, extra_first=openrouter_api_key)
-        if not self.openrouter_keys:
-            legacy_or = os.environ.get("OPENROUTER_API_KEY")
-            if legacy_or:
-                self.openrouter_keys = KeyPool(openrouter_key_env_prefix, count=keys_per_pool, extra_first=legacy_or)
-
-        self.max_retries_per_model = max_retries_per_model
-        self.request_timeout = request_timeout
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.request_timeout = request_timeout
+
+        self.keypools: dict[str, Any] = {
+            "groq": KeyPool("api", count=5),
+            "gemini": KeyPool("gem", count=2),
+            "github": SingleKey("tk"),
+            "sambanova": KeyPool("nova", count=2),
+        }
         self.cooldowns = CooldownTracker()
 
     # ------------------------------------------------------------------ #
@@ -722,164 +613,107 @@ class AICaller:
         query: str,
         mode: Mode = Mode.HUMAN,
         format: Format = Format.TEXT,
-        task: Optional[TaskType] = None,
-        memory: Optional[Union[str, list, dict]] = None,
-        agent_injection: Optional[Union[str, dict]] = None,
-        retry_injection: Optional[dict] = None,
         json_schema_hint: Optional[Union[dict, str]] = None,
+        memory=None,
+        agent_injection=None,
+        retry_injection: Optional[dict] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        allow_openrouter_fallback: bool = True,
     ) -> AIResult:
-        """
-        Main entry point.
-
-        prompt: system/persona instruction ("who the model is").
-        query: the actual user question/task.
-        mode: shapes system prompt + output parsing (see Mode enum).
-        format: Format.TEXT or Format.JSON.
-        task: overrides which registry priority list to use; auto-inferred
-              from mode/format if omitted.
-        """
-        mode = Mode(mode)
-        format = Format(format)
-        task = task or self._infer_task(mode, format)
-
         system_prompt = shape_system_prompt(prompt, mode)
         if format == Format.JSON:
-            system_prompt += self._json_instruction(json_schema_hint)
+            system_prompt += _json_instruction(json_schema_hint)
 
         injections = build_injections_block(memory, agent_injection, retry_injection)
-        user_content = query if not injections else f"{query}\n\n{injections}"
+        user_content = query + (("\n\n" + injections) if injections else "")
 
         messages = [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},
         ]
 
+        candidates = ModelRegistry.candidates(mode)
         attempts: list[dict] = []
 
-        _notify(mode, "SYS_THINK", "selecting model")
+        # Pass 1: walk every candidate MODEL first (no key rotation yet).
+        # Pass 2+: if everything failed, rotate each provider's key pool by
+        # one step and re-walk the same candidate list. This encodes the
+        # priority "change model before changing api key routes".
+        max_key_passes = max((len(p) for p in self.keypools.values() if len(p) > 0), default=1)
 
-        candidates = ModelRegistry.priority_list(task)
-        for spec in candidates:
-            if self.cooldowns.is_cooling(spec.id):
-                attempts.append({"model": spec.id, "backend": "groq", "skipped": "cooling_down"})
-                continue
+        for key_pass in range(max_key_passes):
+            if key_pass > 0:
+                for pool in self.keypools.values():
+                    pool.rotate()
+                logger.info(f"All models exhausted — rotating API keys (pass {key_pass + 1})")
 
-            self.groq_keys.reset_round()
-            _notify(mode, "SYS_THINK", spec.id)
+            for spec in candidates:
+                if self.cooldowns.is_cooling(spec.id):
+                    continue
 
-            while True:
-                outcome = self._try_groq(spec, messages, format, temperature, max_tokens)
+                pool = self.keypools.get(spec.provider)
+                if not pool or not pool.current():
+                    continue  # no key configured for this provider — skip model
+
+                outcome = self._dispatch(spec, messages, format,
+                                          temperature, max_tokens)
                 attempts.append(outcome["log"])
 
                 if outcome["status"] == "ok":
-                    _notify(mode, "SYS_DONE_INTERNAL", spec.id)
-                    return self._finalize(outcome, mode, format, attempts, backend="groq")
+                    return self._finalize(outcome, mode, spec, attempts)
 
                 if outcome["status"] == "rate_limited":
-                    self.groq_keys.rotate()
-                    if self.groq_keys.exhausted():
-                        # every key we have is rate-limited on this model — cool
-                        # the model itself down and move to the next candidate
-                        self.cooldowns.mark(spec.id, outcome["cooldown_seconds"])
-                        _notify(mode, "SYS_GUARD", spec.id)
-                        break
-                    _notify(mode, "SYS_GUARD", spec.id)
-                    continue  # retry same model with the newly rotated key
+                    self.cooldowns.mark(spec.id, outcome.get("cooldown_seconds", 5.0))
+                    continue  # next MODEL, not next key — per priority rule
 
                 if outcome["status"] == "json_invalid":
-                    _notify(mode, "SYS_ACTION", spec.id)
-                    messages_retry = messages + [
+                    # one re-ask on the SAME model before giving up on it
+                    retry_messages = messages + [
                         {"role": "assistant", "content": outcome.get("raw_text", "")},
-                        {"role": "user", "content": (
-                            "That was not valid JSON. Respond again with ONLY "
-                            "valid JSON matching the requested schema — no prose, "
-                            "no markdown fences, no trailing commentary."
-                        )},
+                        {"role": "user", "content": "That was not valid JSON. Return ONLY valid JSON, nothing else."},
                     ]
-                    outcome2 = self._try_groq(spec, messages_retry, format, temperature, max_tokens)
-                    attempts.append(outcome2["log"])
-                    if outcome2["status"] == "ok":
-                        _notify(mode, "SYS_DONE_INTERNAL", spec.id)
-                        return self._finalize(outcome2, mode, format, attempts, backend="groq")
-                    break  # move on to next model
+                    retry_outcome = self._dispatch(spec, retry_messages, format,
+                                                    temperature, max_tokens)
+                    attempts.append(retry_outcome["log"])
+                    if retry_outcome["status"] == "ok":
+                        return self._finalize(retry_outcome, mode, spec, attempts)
+                    continue  # next model
 
-                # generic/transient error -> move on to next model
-                _notify(mode, "SYS_GUARD", spec.id)
-                break
+                # generic error -> next model
+                continue
 
-        # ---- everything on Groq exhausted: OpenRouter backup ----
-        if allow_openrouter_fallback and self.openrouter_keys:
-            logger.warning("All Groq models/keys exhausted — falling back to OpenRouter.")
-            _notify(mode, "SYS_GUARD", "openrouter")
-            for or_model in self.OPENROUTER_FALLBACK_MODELS:
-                self.openrouter_keys.reset_round()
-                _notify(mode, "SYS_THINK", or_model)
-
-                while True:
-                    outcome = self._try_openrouter(or_model, messages, format, temperature, max_tokens)
-                    attempts.append(outcome["log"])
-
-                    if outcome["status"] == "ok":
-                        _notify(mode, "SYS_DONE_INTERNAL", or_model)
-                        return self._finalize(outcome, mode, format, attempts, backend="openrouter")
-
-                    if outcome["status"] == "rate_limited":
-                        self.openrouter_keys.rotate()
-                        if self.openrouter_keys.exhausted():
-                            _notify(mode, "SYS_GUARD", or_model)
-                            break
-                        continue  # retry same model with next oapi key
-
-                    # error / json_invalid -> next model
-                    _notify(mode, "SYS_GUARD", or_model)
-                    break
-
-        _notify(mode, "SYS_GUARD", "none")
         return AIResult(
             ok=False,
-            error="All Groq models/keys (and OpenRouter fallback, if configured) failed.",
+            error="All provider/model/key combinations failed for this mode.",
             attempts=attempts,
         )
 
     # ------------------------------------------------------------------ #
-    # Internals
+    # Dispatch
     # ------------------------------------------------------------------ #
 
-    @staticmethod
-    def _infer_task(mode: Mode, format: Format) -> TaskType:
-        if format == Format.JSON:
-            return TaskType.JSON
-        if mode in (Mode.CODE, Mode.CODE_FILES):
-            return TaskType.CODE
-        if mode == Mode.SUMMARIZER:
-            return TaskType.SUMMARY
-        if mode == Mode.AGENT:
-            return TaskType.AGENT
-        if mode == Mode.COMMAND:
-            return TaskType.FAST
-        return TaskType.GENERAL
+    def _dispatch(self, spec: ModelSpec, messages, format, temperature, max_tokens) -> dict:
+        if spec.provider == "groq":
+            return self._call_openai_style(
+                spec, messages, format, temperature, max_tokens,
+                url=self.GROQ_URL, key=self.keypools["groq"].current(),
+            )
+        if spec.provider == "github":
+            return self._call_openai_style(
+                spec, messages, format, temperature, max_tokens,
+                url=self.GITHUB_URL, key=self.keypools["github"].current(),
+            )
+        if spec.provider == "sambanova":
+            return self._call_openai_style(
+                spec, messages, format, temperature, max_tokens,
+                url=self.SAMBANOVA_URL, key=self.keypools["sambanova"].current(),
+            )
+        if spec.provider == "gemini":
+            return self._call_gemini(spec, messages, format, temperature, max_tokens)
 
-    @staticmethod
-    def _json_instruction(schema_hint: Optional[Union[dict, str]]) -> str:
-        hint = ""
-        if schema_hint:
-            hint_str = schema_hint if isinstance(schema_hint, str) else json.dumps(schema_hint, indent=2)
-            hint = f"\nSchema/shape to follow:\n{hint_str}\n"
-        return (
-            "\n\nOutput format: JSON ONLY. Respond with a single valid JSON "
-            "value (object or array). Do not include markdown code fences, "
-            "do not include any prose before or after the JSON, do not "
-            "include comments, and do not use trailing commas."
-            f"{hint}"
-        )
+        return {"status": "error", "log": {"model": spec.id, "provider": spec.provider, "error": "unknown_provider"}}
 
-    def _try_groq(
-        self, spec: ModelSpec, messages: list[dict], format: Format,
-        temperature: Optional[float], max_tokens: Optional[int],
-    ) -> dict:
+    def _call_openai_style(self, spec: ModelSpec, messages, format, temperature, max_tokens, *, url: str, key: str) -> dict:
         payload = {
             "model": spec.id,
             "messages": messages,
@@ -889,113 +723,135 @@ class AICaller:
         if format == Format.JSON and spec.supports_json_mode:
             payload["response_format"] = {"type": "json_object"}
 
-        headers = {
-            "Authorization": f"Bearer {self.groq_keys.current()}",
-            "Content-Type": "application/json",
-        }
+        headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
 
         try:
-            resp = requests.post(self.GROQ_URL, headers=headers, json=payload, timeout=self.request_timeout)
+            resp = requests.post(url, headers=headers, json=payload, timeout=self.request_timeout)
+        except (requests.Timeout, requests.ConnectionError) as e:
+            # Network-level hiccup — treat like a server error, not fatal.
+            return {
+                "status": "server_error", "cooldown_seconds": 3.0,
+                "log": {"model": spec.id, "provider": spec.provider, "error": f"{type(e).__name__}: {e}"},
+            }
         except requests.RequestException as e:
-            return {"status": "error", "log": {"model": spec.id, "backend": "groq", "error": str(e)}}
+            return {"status": "error", "log": {"model": spec.id, "provider": spec.provider, "error": str(e)}}
 
         if resp.status_code == 429:
             cooldown = self.cooldowns.parse_retry_after(resp.headers)
             return {
-                "status": "rate_limited",
-                "cooldown_seconds": cooldown,
-                "log": {"model": spec.id, "backend": "groq", "status_code": 429, "cooldown": cooldown},
+                "status": "rate_limited", "cooldown_seconds": cooldown,
+                "log": {"model": spec.id, "provider": spec.provider, "status_code": 429, "cooldown": cooldown},
             }
-
+        if resp.status_code in (500, 502, 503, 504):
+            # Transient server-side failure — worth a short cooldown + retry,
+            # but not a hard error (don't want to permanently blacklist a
+            # perfectly good model just because it hiccuped once).
+            return {
+                "status": "server_error", "cooldown_seconds": 3.0,
+                "log": {"model": spec.id, "provider": spec.provider, "status_code": resp.status_code, "body": resp.text[:300]},
+            }
+        if resp.status_code == 401 or resp.status_code == 403:
+            return {
+                "status": "auth_error",
+                "log": {"model": spec.id, "provider": spec.provider, "status_code": resp.status_code, "body": resp.text[:300]},
+            }
         if resp.status_code >= 400:
             return {
                 "status": "error",
-                "log": {"model": spec.id, "backend": "groq", "status_code": resp.status_code, "body": resp.text[:500]},
+                "log": {"model": spec.id, "provider": spec.provider, "status_code": resp.status_code, "body": resp.text[:500]},
             }
 
         data = resp.json()
         try:
             text = data["choices"][0]["message"]["content"]
         except (KeyError, IndexError):
-            return {"status": "error", "log": {"model": spec.id, "backend": "groq", "error": "malformed_response"}}
+            return {"status": "error", "log": {"model": spec.id, "provider": spec.provider, "error": "malformed_response"}}
 
+        return self._format_outcome(spec, text, data, format)
+
+    def _call_gemini(self, spec: ModelSpec, messages, format, temperature, max_tokens, _retry: int = 0) -> dict:
+        try:
+            from google import genai
+        except ImportError:
+            return {"status": "error", "log": {"model": spec.id, "provider": "gemini", "error": "google-genai not installed"}}
+
+        key = self.keypools["gemini"].current()
+        if not key:
+            return {"status": "error", "log": {"model": spec.id, "provider": "gemini", "error": "no api key configured"}}
+
+        system_msg = "\n".join(m["content"] for m in messages if m["role"] == "system")
+        user_msg = "\n".join(m["content"] for m in messages if m["role"] != "system")
+        full_input = (system_msg + "\n\n" + user_msg).strip()
+
+        try:
+            client = genai.Client(api_key=key)
+            interaction = client.interactions.create(model=spec.id, input=full_input)
+            text = getattr(interaction, "output_text", None)
+            if not text:
+                return {"status": "error", "log": {"model": spec.id, "provider": "gemini", "error": "empty response"}}
+        except Exception as e:
+            msg = str(e)
+            status_code = self._extract_status_code(e, msg)
+
+            if status_code == 429 or "RESOURCE_EXHAUSTED" in msg.upper():
+                return {
+                    "status": "rate_limited", "cooldown_seconds": 5.0,
+                    "log": {"model": spec.id, "provider": "gemini", "status_code": status_code, "error": msg[:300]},
+                }
+            if status_code in (401, 403) or "PERMISSION_DENIED" in msg.upper() or "API_KEY_INVALID" in msg.upper():
+                return {
+                    "status": "auth_error",
+                    "log": {"model": spec.id, "provider": "gemini", "status_code": status_code, "error": msg[:300]},
+                }
+            if status_code in (500, 502, 503, 504) or "DEADLINE_EXCEEDED" in msg.upper() or "UNAVAILABLE" in msg.upper():
+                # Transient — retry the SAME model once locally with a short
+                # backoff before giving up on it (this is what was causing
+                # the double "500 Internal Server Error" you saw: the SDK's
+                # own retrying, uncaught). If it still fails, hand back
+                # server_error so the caller moves on to the next model.
+                if _retry < 1:
+                    time.sleep(1.5)
+                    return self._call_gemini(spec, messages, format, temperature, max_tokens, _retry=_retry + 1)
+                return {
+                    "status": "server_error", "cooldown_seconds": 3.0,
+                    "log": {"model": spec.id, "provider": "gemini", "status_code": status_code, "error": msg[:300]},
+                }
+            return {"status": "error", "log": {"model": spec.id, "provider": "gemini", "error": msg[:300]}}
+
+        return self._format_outcome(spec, text, {"raw": "gemini interaction"}, format)
+
+    @staticmethod
+    def _extract_status_code(exc: Exception, msg: str) -> Optional[int]:
+        """Best-effort extraction of an HTTP status code from a google-genai
+        exception, since different SDK versions expose this differently."""
+        for attr in ("status_code", "code", "http_status"):
+            v = getattr(exc, attr, None)
+            if isinstance(v, int):
+                return v
+        m = re.search(r"\b([45]\d{2})\b", msg)
+        if m:
+            return int(m.group(1))
+        return None
+
+    def _format_outcome(self, spec: ModelSpec, text: str, raw: dict, format: Format) -> dict:
         if format == Format.TEXT:
             return {
-                "status": "ok", "text": text, "model": spec.id, "raw": data,
-                "log": {"model": spec.id, "backend": "groq", "status": "ok"},
+                "status": "ok", "text": text, "model": spec.id, "provider": spec.provider, "raw": raw,
+                "log": {"model": spec.id, "provider": spec.provider, "status": "ok"},
             }
-
-        # JSON format: sanitize
         parsed = JSONSanitizer.extract_and_parse(text)
         if parsed is None:
             return {
-                "status": "json_invalid",
-                "raw_text": text,
-                "log": {"model": spec.id, "backend": "groq", "status": "json_invalid"},
+                "status": "json_invalid", "raw_text": text,
+                "log": {"model": spec.id, "provider": spec.provider, "status": "json_invalid"},
             }
-
         return {
-            "status": "ok", "text": text, "data": parsed, "model": spec.id, "raw": data,
-            "log": {"model": spec.id, "backend": "groq", "status": "ok"},
-        }
-
-    def _try_openrouter(
-        self, model_id: str, messages: list[dict], format: Format,
-        temperature: Optional[float], max_tokens: Optional[int],
-    ) -> dict:
-        headers = {
-            "Authorization": f"Bearer {self.openrouter_keys.current()}",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "model": model_id,
-            "messages": messages,
-            "temperature": temperature if temperature is not None else self.temperature,
-            "max_tokens": max_tokens or self.max_tokens,
-        }
-        try:
-            resp = requests.post(self.OPENROUTER_URL, headers=headers, json=payload, timeout=self.request_timeout)
-        except requests.RequestException as e:
-            return {"status": "error", "log": {"model": model_id, "backend": "openrouter", "error": str(e)}}
-
-        if resp.status_code == 429:
-            cooldown = self.cooldowns.parse_retry_after(resp.headers)
-            return {
-                "status": "rate_limited",
-                "cooldown_seconds": cooldown,
-                "log": {"model": model_id, "backend": "openrouter", "status_code": 429, "cooldown": cooldown},
-            }
-
-        if resp.status_code >= 400:
-            return {
-                "status": "error",
-                "log": {"model": model_id, "backend": "openrouter", "status_code": resp.status_code, "body": resp.text[:500]},
-            }
-
-        data = resp.json()
-        try:
-            text = data["choices"][0]["message"]["content"]
-        except (KeyError, IndexError):
-            return {"status": "error", "log": {"model": model_id, "backend": "openrouter", "error": "malformed_response"}}
-
-        if format == Format.TEXT:
-            return {
-                "status": "ok", "text": text, "model": model_id, "raw": data,
-                "log": {"model": model_id, "backend": "openrouter", "status": "ok"},
-            }
-
-        parsed = JSONSanitizer.extract_and_parse(text)
-        if parsed is None:
-            return {"status": "json_invalid", "raw_text": text,
-                    "log": {"model": model_id, "backend": "openrouter", "status": "json_invalid"}}
-
-        return {
-            "status": "ok", "text": text, "data": parsed, "model": model_id, "raw": data,
-            "log": {"model": model_id, "backend": "openrouter", "status": "ok"},
+            "status": "ok", "text": text, "data": parsed, "model": spec.id, "provider": spec.provider, "raw": raw,
+            "log": {"model": spec.id, "provider": spec.provider, "status": "ok"},
         }
 
     @staticmethod
-    def _finalize(outcome: dict, mode: Mode, format: Format, attempts: list[dict], backend: str) -> AIResult:
+    def _finalize(outcome: dict, mode: Mode, spec: ModelSpec, attempts: list[dict]) -> AIResult:
         text = outcome.get("text", "")
         code_files = parse_code_files(text) if mode == Mode.CODE_FILES else None
         return AIResult(
@@ -1003,46 +859,35 @@ class AICaller:
             text=text,
             data=outcome.get("data"),
             code_files=code_files,
-            model_used=outcome.get("model"),
-            backend=backend,
+            model_used=spec.id,
+            provider=spec.provider,
+            tier=spec.tier.value,
             attempts=attempts,
             raw_response=outcome.get("raw"),
         )
 
 
 # --------------------------------------------------------------------------- #
-# Example / smoke test
+# Smoke test
 # --------------------------------------------------------------------------- #
 
 if __name__ == "__main__":
-    # For a real run, put your keys in a .env file next to this script:
-    #   api1=gsk_xxx
-    #   api2=gsk_yyy
-    #   ...
-    #   oapi1=sk-or-xxx
-    #   ...
-    os.environ.setdefault("api1", "test-key")  # so this smoke test can run standalone
-    ai = AICaller()
+    ModelRegistry._build()
+    print("=== Registry ===")
+    for provider, tiers in ModelRegistry.PROVIDERS.items():
+        for tier, ids in tiers.items():
+            print(f"{provider:10} {tier.value:4} -> {ids}")
 
-    print("Registry loaded:", list(ModelRegistry.MODELS.keys()))
-    print("Groq keys loaded:", len(ai.groq_keys))
-    print("OpenRouter keys loaded:", len(ai.openrouter_keys))
+    print("\n=== Mode -> candidate order (model ids only) ===")
+    for mode in Mode:
+        cand = ModelRegistry.candidates(mode)
+        print(f"{mode.value:12}: {[f'{c.provider}:{c.id}' for c in cand]}")
+
+    print("\n=== Key pools loaded (0 means missing env var) ===")
+    ai = AICaller()
+    for name, pool in ai.keypools.items():
+        print(f"{name:10}: {len(pool)} key(s)")
 
     print("\nJSON sanitizer smoke test:")
     messy = "Sure! Here you go:\n```json\n{'name': 'Mars', 'moons': 2,}\n```\nHope that helps!"
     print(JSONSanitizer.extract_and_parse(messy))
-
-    print("\ncode_files parser smoke test:")
-    sample = (
-        "Here are your files.\n"
-        "--------start of code------\n"
-        "### FILE: app.py\n"
-        "print('hello')\n"
-        "### FILE: requirements.txt\n"
-        "requests\n"
-        "-----end of code------\n"
-        "Let me know if you need anything else."
-    )
-    print(parse_code_files(sample))
-
-  

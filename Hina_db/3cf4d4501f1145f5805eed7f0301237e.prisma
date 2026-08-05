@@ -1,0 +1,64 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Affiliate {
+  id          String       @id @default(uuid())
+  name        String
+  email       String       @unique
+  token       String       @unique @default(uuid())
+  status      String       @default("ACTIVE") // ACTIVE, SUSPENDED
+  createdAt   DateTime     @default(now())
+  clicks      Click[]
+  conversions Conversion[]
+}
+
+model Product {
+  id             String   @id @default(uuid())
+  title          String
+  slug           String   @unique
+  description    String
+  price          Float
+  commissionRate Float    // Commission percentage (e.g., 15.0 for 15%)
+  targetUrl      String
+  imageUrl       String
+  category       String
+  clicks         Click[]
+}
+
+model Click {
+  id          String       @id @default(uuid())
+  clickToken  String       @unique // Unique tracker generated on redirect
+  affiliateId String?
+  productId   String
+  referrer    String?
+  ipAddress   String?
+  userAgent   String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  createdAt   DateTime     @default(now())
+  
+  affiliate   Affiliate?   @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  product     Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  conversions Conversion[]
+}
+
+model Conversion {
+  id          String   @id @default(uuid())
+  clickToken  String
+  affiliateId String?
+  amount      Float    // Sale Amount
+  commission  Float    // Payout generated
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  externalTxId String? @unique
+  createdAt   DateTime @default(now())
+
+  click       Click    @relation(fields: [clickToken], references: [clickToken], onDelete: Cascade)
+  affiliate   Affiliate? @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+}

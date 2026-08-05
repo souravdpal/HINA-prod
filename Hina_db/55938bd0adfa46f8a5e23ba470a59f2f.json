@@ -1,0 +1,17 @@
+{
+  "name": "amazon-affiliate-store",
+  "version": "1.0.0",
+  "description": "A clean, modern Amazon Affiliate Storefront with an Admin Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "ejs": "^3.1.9",
+    "body-parser": "^1.20.2"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

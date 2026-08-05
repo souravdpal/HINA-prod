@@ -1,0 +1,46 @@
+[
+  {
+    "id": "1",
+    "title": "Ergonomic Office Chair with Lumbar Support",
+    "category": "Office",
+    "price": "149.99",
+    "imageUrl": "https://images.unsplash.com/photo-1505797149-43b0069ec26b?auto=format&fit=crop&w=600&q=80",
+    "affiliateUrl": "https://amzn.to/3EXAMPLE",
+    "description": "High-back mesh office chair designed with adjustable lumbar support, 3D armrests, and high density cushion for premium home office comfort.",
+    "rating": "4.5",
+    "isFeatured": true
+  },
+  {
+    "id": "2",
+    "title": "Premium Wireless Noise Cancelling Headphones",
+    "category": "Electronics",
+    "price": "299.00",
+    "imageUrl": "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=600&q=80",
+    "affiliateUrl": "https://amzn.to/3EXAMPLE2",
+    "description": "Experience pure music bliss with industry-leading active noise cancellation, 30-hour battery life, and high-fidelity sound spatial audio.",
+    "rating": "4.8",
+    "isFeatured": true
+  },
+  {
+    "id": "3",
+    "title": "Stainless Steel Double-Walled Vacuum Tumbler (20 oz)",
+    "category": "Kitchen",
+    "price": "24.95",
+    "imageUrl": "https://images.unsplash.com/photo-1577937927133-66ef06acdf18?auto=format&fit=crop&w=600&q=80",
+    "affiliateUrl": "https://amzn.to/3EXAMPLE3",
+    "description": "Keep your beverages ice cold for up to 24 hours or piping hot for up to 12. Splash-resistant lid included, perfect for travel or the gym.",
+    "rating": "4.3",
+    "isFeatured": false
+  },
+  {
+    "id": "4",
+    "title": "Minimalist Leather Cardholder Wallet with RFID Blocking",
+    "category": "Fashion",
+    "price": "19.99",
+    "imageUrl": "https://images.unsplash.com/photo-1627123424574-724758594e93?auto=format&fit=crop&w=600&q=80",
+    "affiliateUrl": "https://amzn.to/3EXAMPLE4",
+    "description": "Crafted from genuine top-grain leather, this slim pocket sleeve blocks RFID scanners while keeping up to 8 cards and cash perfectly secure.",
+    "rating": "4.6",
+    "isFeatured": false
+  }
+]

@@ -1,0 +1,63 @@
+{
+  "version": "1.1",
+  "updated": "2026-07-19",
+  "description": "Index of available MCP servers for query routing. Fed to mcp_router.py's single routing call along with the live tool schemas from mcp_tools_cache.json. Each server's 'description' and 'disambiguation' exist to separate it from servers it could plausibly be confused with -- keep both current whenever server scope changes.",
+  "servers": [
+    {
+      "mcp_name": "github_mcp",
+      "description": "Read and manage GitHub repositories: issues, pull requests, commits, code search, branches, releases, and repo metadata. Acts on real GitHub data via an authenticated account.",
+      "tags": ["github", "git", "repo", "repository", "code", "issue", "pull request", "pr", "commit", "branch", "developer", "merge", "star", "notification"],
+      "disambiguation": "Use only when the query references an actual repo, PR, issue, or GitHub account action. Do NOT use for the model writing/explaining code from scratch -- that's plain chat, no tool needed.",
+      "prompt_file": "/prompts/github.txt"
+    },
+    {
+      "mcp_name": "youtube_mcp",
+      "description": "Search YouTube and fetch video metadata, transcripts/captions, and channel info. Does NOT play audio/video locally -- read-only lookups only.",
+      "tags": ["youtube", "search video", "transcript", "caption", "channel info", "video metadata", "watch count"],
+      "disambiguation": "Use when the user wants INFORMATION about a video/channel (transcript, summary, who made it, how many views) -- not when they want something played out loud. 'What's that video about' -> youtube_mcp. 'Play that video/song' -> music_mcp.",
+      "prompt_file": "/prompts/youtube.txt"
+    },
+    {
+      "mcp_name": "music_mcp",
+      "description": "Controls actual local/connected playback -- starts, pauses, resumes, or stops audio/video, including pulling from YouTube as a playback source.",
+      "tags": ["music", "song", "play", "pause", "resume", "stop", "playlist", "audio", "volume", "queue", "track", "video playback"],
+      "disambiguation": "Use whenever the user wants something to actually START PLAYING (song, video, audio) regardless of source platform named -- 'play X on youtube' still means music_mcp, since youtube_mcp cannot play anything. 'Play', 'pause', 'stop', 'skip', 'resume' are the trigger verbs.",
+      "prompt_file": "/prompts/music_player.txt"
+    },
+    {
+      "mcp_name": "web_search_mcp",
+      "description": "Searches the open web and fetches page content for current events, facts, or research not covered by any other server here.",
+      "tags": ["search", "web", "internet", "google", "news", "current events", "research", "fetch", "browse"],
+      "disambiguation": "Use for general/current-events questions. If the query is specifically about a YouTube video or GitHub repo, prefer those servers instead -- they're more precise for their domain.",
+      "prompt_file": "/prompts/web_search.txt"
+    },
+    {
+      "mcp_name": "image_mcp",
+      "description": "Generates, edits, or analyzes images -- text-to-image creation, image editing, and describing/inspecting uploaded images.",
+      "tags": ["image", "picture", "photo", "generate image", "art", "edit image", "vision", "describe image", "draw"],
+      "disambiguation": null,
+      "prompt_file": "/prompts/image.txt"
+    },
+    {
+      "mcp_name": "memories_mcp",
+      "description": "Stores, retrieves, and searches persistent memories/notes about the user for long-term recall across sessions.",
+      "tags": ["memory", "memories", "remember this", "recall", "notes", "save fact", "long-term"],
+      "disambiguation": "Use only when the user explicitly asks to remember/recall a fact long-term. Do NOT use for referencing something said earlier in THIS conversation -- that's already in context, no tool needed.",
+      "prompt_file": "/prompts/memories.txt"
+    },
+    {
+      "mcp_name": "message_mcp",
+      "description": "Sends and reads messages on the user's behalf -- email, SMS, chat, or notifications.",
+      "tags": ["message", "email", "sms", "text someone", "chat", "notify", "send", "inbox"],
+      "disambiguation": null,
+      "prompt_file": "/prompts/message.txt"
+    },
+    {
+      "mcp_name": "astrophyics_mcp",
+      "description": "Astrology and astronomy lookups: horoscopes, birth charts, planetary positions, celestial events.",
+      "tags": ["astro", "astrology", "horoscope", "zodiac", "birth chart", "planets", "astronomy", "stars"],
+      "disambiguation": null,
+      "prompt_file": "/prompts/astro.txt"
+    }
+  ]
+}

@@ -1,54 +1,63 @@
-import os
-import sys
-import subprocess as sub
+import re
 from sql_db import query
-from model_call import AICaller , Format , Mode
-import re 
-from ollama_call import call_ollama
+from model_call import AICaller, Format, Mode
+from ollama_summrizer import OllamaClient
 
 ai = AICaller()
-def get_short_term():
-    short_memo= query(
-        """ select  summary   from short_term_memory;
-        """
-    )
-    #print(short_memo)
-    return short_memo[0].get("summary",None)
 
+def get_old_chat_context(limit: int = 5) -> str:
+    """Pulls the last N agent messages and last N user messages, merges, sorts chronologically."""
+    sql = """
+        (SELECT message, role, created_at
+         FROM conversation_history
+         WHERE role = 'agent'
+         ORDER BY created_at DESC
+         LIMIT %s)
+        UNION ALL
+        (SELECT message, role, created_at
+         FROM conversation_history
+         WHERE role = 'user'
+         ORDER BY created_at DESC
+         LIMIT %s)
+        ORDER BY created_at ASC
+    """
+    rows = query(sql, (limit, limit))
+    return "\n".join(f"{r['role'].upper()}: {r['message']}" for r in rows)
 
-def old_chat():
-    short_old_c= query(
-        """  SELECT message  FROM  conversation_history  ORDER BY created_at DESC  LIMIT 6;
+def get_summary_old(q: str):
+    # Pass the context and the current query clearly
+    chat_history = get_old_chat_context()
+    
+    # Use a Persona-based prompt to force the model to synthesize context, not summarize structure
+    full_prompt = f"""
+You are Hina's internal memory processing unit. Your task is to analyze the following recent conversation history and synthesize a concise, rich contextual brief that helps Hina understand the current flow of the interaction.
 
-        """
-    )
-    return short_old_c[0].get("message",None)
+DO NOT use bullet points like 'Initiator' or 'Request'. 
+DO synthesize the core topics, user intent, and emotional context into a natural, brief paragraph.
 
+RECENT HISTORY:
+{chat_history}
 
+CURRENT QUERY:
+{q}
 
-def get_summary_old(q:str):
-    q="Sourav who talks to hina says  : " + q
-    full_prompt=f"""
-summarzie the data from thrid perpective  The history you get is of HINA You have to  Make summary properly no waste of tokens pointer short and rich with information :
-\n \n {old_chat()}
+SYNTHESIS:
 """
+    
     res = ai.call(
         prompt=full_prompt,
         mode=Mode.SUMMARIZER,
         format=Format.TEXT,
         query=q
     )
-    """res = call_ollama(
-        model="qwen3.5:0.8b",
-        prompt=full_prompt,
-        query=q,
-        memory="",
-    )"""
-    gt_dat = res.text
-    print(gt_dat)
-    return re.sub(r'<think>.*?</think>', '', gt_dat, flags=re.DOTALL)
+    
+    # Clean the output
+    raw_output = res.text
+    cleaned_output = re.sub(r'<think>.*?</think>', '', raw_output, flags=re.DOTALL).strip()
+    
+    print(f"--- Memory Synthesis ---\n{raw_output}")
+    return raw_output
 
 
 
-if __name__=="__main__":
-    print(get_short_term())
+

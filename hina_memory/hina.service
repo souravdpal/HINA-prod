@@ -1,9 +1,0 @@
-[Unit]
-Description=Hina long-term memory summarizer
-After=network-online.target mariadb.service
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-EnvironmentFile=/etc/hina-memory/env
-ExecStart=/opt/hina-memory/summarize_memory.sh

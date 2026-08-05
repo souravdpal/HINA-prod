@@ -2,13 +2,15 @@ import sys
 import os
 from hina_sdk import send_state
 from model_call import AICaller, Format, Mode
-from sql_db import query
-from summ import get_summary_old
-import re 
-from ollama_call import call_ollama
+from summ import get_summary_old 
+from hin_voice_engine import run_hina_voice
+from voice_stat import is_voice_on
+from mcp_router import route_and_call
+
+
 
 def build_context(persona_path: str, summary: str, long_term_memory: str) -> str:
-    
+
     persona = ""
     if os.path.exists(persona_path):
         with open(persona_path, "r") as f:
@@ -17,8 +19,7 @@ def build_context(persona_path: str, summary: str, long_term_memory: str) -> str
         persona = "System fallback: Persona file missing."
 
     context_parts = [persona]
-    
-    # Inject state to mimic human recall
+
     if long_term_memory:
         context_parts.append(f"\n[LONG-TERM MEMORY]\n{long_term_memory}")
     if summary:
@@ -32,7 +33,6 @@ def Hina_res(query: str, summary: str = "", long_term_memory: str = "", persona_
     """
     Core AI execution function. Can be imported as a module or called via sys args.
     """
-    summary = str(get_summary_old(q="Give appropriate memories regarding user que : "+query))
     if not query.strip():
         send_state(
             agent_name="HINA",
@@ -43,9 +43,27 @@ def Hina_res(query: str, summary: str = "", long_term_memory: str = "", persona_
         )
         return False
 
+    # ONE call decides tool-need + server + tool + args, and dispatches
+    # if it found a match. None means "no tool needed, handle as normal chat".
+    mcp_result = route_and_call(query)
+    print(mcp_result)
+    if mcp_result is not None:
+        send_state(
+            agent_name="HINA",
+            state="HINA..",
+            msg="tool result ready",
+            text=str(mcp_result),
+            icon="fa-solid fa-child-dress",
+            color="Pink",
+            voice=True,
+            done=True
+        )
+        return True
+
+    summary = str(get_summary_old(q=query))
+
     ai = AICaller()
     full_prompt = build_context(persona_path, summary, long_term_memory)
-    print(full_prompt)
 
     res = ai.call(
         prompt=full_prompt,
@@ -53,14 +71,25 @@ def Hina_res(query: str, summary: str = "", long_term_memory: str = "", persona_
         format=Format.TEXT,
         query=query
     )
-   
+
 
     if res.ok:
+        send_state(
+            agent_name="HINA speaking...",
+            state="HINA..",
+            msg="hina responding..",
+            icon="fa-solid fa-child-dress",
+            color="Pink",
+            voice=True,
+            done=False
+        )
+        if(is_voice_on()==True):
+            run_hina_voice(text=res.text)
         send_state(
             agent_name="HINA",
             state="HINA..",
             msg="hina responding",
-            text=str(re.sub(r'<think>.*?</think>', '', res.text, flags=re.DOTALL)),
+            text=res.text,
             icon="fa-solid fa-child-dress",
             color="Pink",
             voice=True,
@@ -79,13 +108,8 @@ def Hina_res(query: str, summary: str = "", long_term_memory: str = "", persona_
         return False
 
 if __name__ == "__main__":
-    # Handles execution when spawned as a child process (e.g., via Node.js or bash)
     if len(sys.argv) > 1:
         input_query = sys.argv[1]
-        
-        # When spawned this way, summary and memory would typically be fetched 
-        # from a DB, Redis, or state file. Passing empty strings as defaults here.
         Hina_res(query=input_query)
     else:
-        # Failsafe if the process is triggered without arguments
         sys.exit(1)

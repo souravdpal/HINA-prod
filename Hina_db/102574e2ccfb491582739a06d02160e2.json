@@ -1,0 +1,21 @@
+{
+  "name": "docker-mcp-server",
+  "version": "1.0.0",
+  "description": "An advanced Model Context Protocol (MCP) server for Docker container management and orchestration.",
+  "main": "build/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node build/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "dockerode": "^4.0.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/dockerode": "^3.7.14",
+    "@types/node": "^20.11.24",
+    "typescript": "^5.3.3"
+  }
+}

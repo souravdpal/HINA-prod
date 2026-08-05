@@ -54,7 +54,7 @@
         "description": "Generate AI images from text prompts" 
     },
     { 
-        "name": "astro_mcp", 
+        "name": "astrophyics_mcp", 
         "label": "Space Data", 
         "icon": "fa-solid fa-user-astronaut", 
         "description": "Fetch real-time space, celestial, and NASA API data" 

@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduSphere | Student & Lecture Database</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-['Inter'] transition-colors duration-300 dark:bg-slate-900 dark:text-slate-100">
+
+    <div class="flex h-screen overflow-hidden">
+        
+        <!-- SIDEBAR -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 flex flex-col w-64 bg-slate-900 text-white transition-transform duration-300 transform -translate-x-full lg:translate-x-0 lg:static lg:inset-auto">
+            <!-- Sidebar Header -->
+            <div class="flex items-center justify-between h-16 px-6 bg-slate-950 border-b border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-brand-600 rounded-lg">
+                        <i class="fa-solid fa-graduation-cap text-lg text-white animate-pulse"></i>
+                    </div>
+                    <span class="text-xl font-bold tracking-wider bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">EduSphere</span>
+                </div>
+                <button id="close-sidebar" class="lg:hidden text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+                <button data-target="dashboard" class="nav-btn active flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 gap-4 text-left">
+                    <i class="fa-solid fa-chart-pie text-lg"></i>
+                    <span class="font-medium text-sm">Dashboard</span>
+                </button>
+                <button data-target="students" class="nav-btn flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 gap-4 text-left">
+                    <i class="fa-solid fa-users text-lg"></i>
+                    <span class="font-medium text-sm">Student Directory</span>
+                </button>
+                <button data-target="lectures" class="nav-btn flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 gap-4 text-left">
+                    <i class="fa-solid fa-book-open text-lg"></i>
+                    <span class="font-medium text-sm">Lecture Portal</span>
+                </button>
+                <button data-target="analytics" class="nav-btn flex items-center w-full px-4 py-3 rounded-xl transition-all duration-200 gap-4 text-left">
+                    <i class="fa-solid fa-chart-column text-lg"></i>
+                    <span class="font-medium text-sm">Performance Logs</span>
+                </button>
+            </nav>
+
+            <!-- Sidebar Footer -->
+            <div class="p-4 border-t border-slate-800 bg-slate-950/50">
+                <div class="flex items-center gap-3">
+                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256" alt="Admin Profile" class="w-10 h-10 rounded-full border-2 border-brand-500 object-cover">
+                    <div>
+                        <p class="text-xs text-slate-400">Welcome back,</p>
+                        <h4 class="text-sm font-semibold text-slate-100">Dr. Sarah Jenkins</h4>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT CONTAINER -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-slate-50 dark:bg-slate-950">
+            
+            <!-- TOP BAR -->
+            <header class="flex items-center justify-between h-16 px-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm z-30">
+                <div class="flex items-center gap-4">
+                    <button id="open-sidebar" class="lg:hidden text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                    <h2 id="page-title" class="text-xl font-bold text-slate-800 dark:text-slate-100">Dashboard</h2>
+                </div>
+                
+                <div class="flex items-center gap-4">
+                    <!-- Quick Search Trigger -->
+                    <div class="relative hidden sm:block">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                            <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                        </span>
+                        <input type="text" id="global-search" placeholder="Quick find students..." class="w-64 pl-9 pr-4 py-2 text-sm bg-slate-100 dark:bg-slate-800 border-0 rounded-full focus:ring-2 focus:ring-brand-500 focus:outline-none dark:text-slate-200">
+                    </div>
+                    
+                    <!-- Theme Toggle -->
+                    <button id="theme-toggle" class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+                        <i class="fa-solid fa-moon text-lg dark:hidden"></i>
+                        <i class="fa-solid fa-sun text-lg hidden dark:block"></i>
+                    </button>
+
+                    <!-- Notifications Dropdown -->
+                    <div class="relative">
+                        <button class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full relative">
+                            <i class="fa-regular fa-bell text-lg"></i>
+                            <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- VIEWPORT WINDOW -->
+            <div id="content-area" class="flex-1 p-6 overflow-y-auto">
+                
+                <!-- 1. DASHBOARD VIEW -->
+                <section id="dashboard" class="tab-content space-y-6">
+                    <!-- Quick Stats Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <!-- Stat card 1 -->
+                        <div class="p-6 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center gap-5 transition-transform duration-200 hover:-translate-y-1">
+                            <div class="p-4 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl">
+                                <i class="fa-solid fa-users text-2xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Total Registered</p>
+                                <h3 id="stat-total-students" class="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">0</h3>
+                            </div>
+                        </div>
+                        <!-- Stat card 2 -->
+                        <div class="p-6 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center gap-5 transition-transform duration-200 hover:-translate-y-1">
+                            <div class="p-4 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                                <i class="fa-solid fa-video text-2xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Active Lectures</p>
+                                <h3 id="stat-total-lectures" class="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">0</h3>
+                            </div>
+                        </div>
+                        <!-- Stat card 3 -->
+                        <div class="p-6 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center gap-5 transition-transform duration-200 hover:-translate-y-1">
+                            <div class="p-4 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-xl">
+                                <i class="fa-solid fa-percent text-2xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Avg Attendance</p>
+                                <h3 id="stat-avg-attendance" class="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">0%</h3>
+                            </div>
+                        </div>
+                        <!-- Stat card 4 -->
+                        <div class="p-6 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 flex items-center gap-5 transition-transform duration-200 hover:-translate-y-1">
+                            <div class="p-4 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-xl">
+                                <i class="fa-solid fa-chart-line text-2xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Class GPA Average</p>
+                                <h3 id="stat-avg-gpa" class="text-2xl font-bold mt-1 text-slate-800 dark:text-slate-100">0.0</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Layout Grid -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Quick Schedule -->
+                        <div class="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+                            <div class="flex items-center justify-between mb-6">
+                                <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100">Upcoming Lectures & Seminars</h3>
+                                <button data-target="lectures" class="text-brand-500 hover:text-brand-600 text-sm font-semibold flex items-center gap-1 nav-btn">
+                                    View All <i class="fa-solid fa-arrow-right text-xs"></i>
+                                </button>
+                            </div>
+                            <div id="schedule-timeline" class="space-y-4">
+                                <!-- Dynamic Render from app.js -->
+                            </div>
+                        </div>
+
+                        <!-- Top Performing Students -->
+                        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+                            <h3 class="text-lg font-bold mb-6 text-slate-800 dark:text-slate-100">Top Performing Scholars</h3>
+                            <div id="top-scholars-list" class="space-y-4">
+                                <!-- Dynamic Render from app.js -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. STUDENT DIRECTORY VIEW -->
+                <section id="students" class="tab-content space-y-6 hidden">
+                    <!-- Controls Bar -->
+                    <div class="flex flex-col md:flex-row gap-4 items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+                        <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                            <!-- Search -->
+                            <div class="relative flex-1 md:w-64">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                                    <i class="fa-solid fa-magnifying-glass text-sm"></i>
+                                </span>
+                                <input type="text" id="search-student-db" placeholder="Search database..." class="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
+                            </div>
+                            <!-- Major Filter -->
+                            <select id="filter-major" class="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
+                                <option value="All">All Majors</option>
+                                <option value="Computer Science">Computer Science</option>
+                                <option value="Data Science">Data Science</option>
+                                <option value="Cyber Security">Cyber Security</option>
+                                <option value="Information Systems">Information Systems</option>
+                            </select>
+                        </div>
+                        <button id="btn-add-student" class="w-full md:w-auto px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-semibold shadow-md flex items-center justify-center gap-2 transition-all">
+                            <i class="fa-solid fa-plus"></i> Add New Student
+                        </button>
+                    </div>
+
+                    <!-- Students Table Container -->
+                    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold tracking-wider uppercase">
+                                        <th class="py-4 px-6">ID</th>
+                                        <th class="py-4 px-6">Scholar Name</th>
+                                        <th class="py-4 px-6">Major</th>
+                                        <th class="py-4 px-6">GPA</th>
+                                        <th class="py-4 px-6">Attendance</th>
+                                        <th class="py-4 px-6 text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="student-table-body" class="divide-y divide-slate-100 dark:divide-slate-800">
+                                    <!-- Dynamic rows will inject here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <!-- Empty State -->
+                        <div id="student-empty-state" class="hidden p-12 text-center text-slate-400">
+                            <i class="fa-solid fa-user-slash text-5xl mb-4"></i>
+                            <p class="text-lg font-semibold">No students matching query found</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. LECTURE PORTAL VIEW -->
+                <section id="lectures" class="tab-content space-y-6 hidden">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-slate-800 dark:text-slate-100">Live & Scheduled Lectures</h3>
+                        <button id="btn-add-lecture" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-md flex items-center gap-2 transition-all">
+                            <i class="fa-solid fa-plus"></i> Schedule Lecture
+                        </button>
+                    </div>
+
+                    <!-- Lecture Cards Grid -->
+                    <div id="lecture-cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Dynamic Injection -->
+                    </div>
+                </section>
+
+                <!-- 4. ANALYTICS & LOGS VIEW -->
+                <section id="analytics" class="tab-content space-y-6 hidden">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Performance Analytics -->
+                        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+                            <h3 class="text-lg font-bold mb-4 text-slate-800 dark:text-slate-100">GPA Spectrum distribution</h3>
+                            <canvas id="gpaDistributionChart" class="w-full max-h-72"></canvas>
+                        </div>
+
+                        <!-- Class Attendance Dynamics -->
+                        <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+                            <h3 class="text-lg font-bold mb-4 text-slate-800 dark:text-slate-100">Attendance rates by major</h3>
+                            <canvas id="attendanceChart" class="w-full max-h-72"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+                        <h3 class="text-lg font-bold mb-4 text-slate-800 dark:text-slate-100">Database Administration Logs</h3>
+                        <div class="overflow-x-auto">
+                            <div class="space-y-3" id="admin-logs">
+                                <!-- Dynamic logs -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- MODALS SECTION -->
+
+    <!-- STUDENT MODAL (ADD / EDIT) -->
+    <div id="student-modal" class="fixed inset-0 bg-slate-950/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm hidden transition-all duration-300">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300">
+            <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800">
+                <h3 id="student-modal-title" class="text-xl font-bold text-slate-800 dark:text-slate-100">Add New Scholar</h3>
+                <button class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <form id="student-form" class="p-6 space-y-4">
+                <input type="hidden" id="student-index">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Scholar Full Name</label>
+                    <input type="text" id="stud-name" required class="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">E-mail Address</label>
+                    <input type="email" id="stud-email" required class="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Specialization Major</label>
+                        <select id="stud-major" class="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
+                            <option value="Computer Science">Computer Science</option>
+                            <option value="Data Science">Data Science</option>
+                            <option value="Cyber Security">Cyber Security</option>
+                            <option value="Information Systems">Information Systems</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Current GPA</label>
+                        <input type="number" step="0.01" min="0" max="4" id="stud-gpa" required class="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Attendance rate (%)</label>
+                    <input type="number" min="0" max="100" id="stud-attendance" required class="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" class="modal-close flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 font-semibold rounded-xl transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl shadow-md transition-all">Save Record</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- LECTURE MODAL -->
+    <div id="lecture-modal" class="fixed inset-0 bg-slate-950/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm hidden transition-all duration-300">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300">
+            <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800">
+                <h3 class="text-xl font-bold text-slate-800 dark:text-slate-100">Schedule Lecture</h3>
+                <button class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <form id="lecture-form" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Course Title</label>
+                    <input type="text" id="lec-title" required class="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Course Code</label>
+                        <input type="text" id="lec-code" required placeholder="CS-402" class="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Professor</label>
+                        <input type="text" id="lec-prof" required class="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Lecture Date</label>
+                        <input type="date" id="lec-date" required class="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Time</label>
+                        <input type="time" id="lec-time" required class="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Location / Platform</label>
+                    <input type="text" id="lec-location" placeholder="e.g. Auditiorium A / Zoom link" required class="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-100">
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button type="button" class="modal-close flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 font-semibold rounded-xl transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md transition-all">Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- LECTURE ATTENDANCE DETAILS VIEW MODAL -->
+    <div id="attendance-modal" class="fixed inset-0 bg-slate-950/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm hidden transition-all duration-300">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[85vh]">
+            <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-800">
+                <div>
+                    <h3 id="att-modal-title" class="text-xl font-bold text-slate-800 dark:text-slate-100">Lecture Session Panel</h3>
+                    <p id="att-modal-subtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-1">CS-402 • Dr. Jenkins</p>
+                </div>
+                <button class="modal-close text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="flex-1 p-6 overflow-y-auto space-y-4">
+                <!-- Simulating video lecture deck -->
+                <div class="w-full bg-slate-950 rounded-xl aspect-video relative flex items-center justify-center text-white overflow-hidden group">
+                    <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&q=80&w=600" class="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-500" alt="Lecture Slide">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
+                    <div class="z-10 flex flex-col items-center">
+                        <button type="button" class="w-16 h-16 bg-brand-600 hover:bg-brand-500 rounded-full flex items-center justify-center text-white shadow-lg transform transition active:scale-95">
+                            <i class="fa-solid fa-play text-xl ml-1"></i>
+                        </button>
+                        <span class="text-xs tracking-widest uppercase font-semibold text-slate-300 mt-4 bg-slate-900/80 px-3 py-1 rounded-full border border-slate-700">Simulate Stream Recording</span>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-sm font-bold text-slate-800 dark:text-slate-100 mb-2">Live Session Student Checklist</h4>
+                    <p class="text-xs text-slate-500 mb-4">Toggle attendees to update real-time attendance stats.</p>
+                    <div id="attendance-checklist" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                        <!-- Student Attend Checkboxes -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex gap-3">
+                <button type="button" class="modal-close flex-1 py-2.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 font-semibold rounded-xl text-slate-800 dark:text-white transition-all">Close Viewer</button>
+                <button id="save-attendance-btn" type="button" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-md transition-all">Save Attendance</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="js/app.js"></script>
+</body>
+</html>

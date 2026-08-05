@@ -1,0 +1,20 @@
+# Dependency Trees
+node_modules/
+package-lock.json
+hina2/
+
+# Python caching and environments
+__pycache__/
+*.pyc
+.pytest_cache/
+core/__pycache__/
+mcp_servers/__pycache__/
+mcp_helper/__pycache__/
+core/whisper_cache/
+
+# Audio outputs / runtime generations
+*.wav
+*.mp3
+node_modules
+node_modules
+node_modules

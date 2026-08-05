@@ -11,17 +11,14 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
 </head>
 <body>
 
 <div class="app">
 
-  <!-- ================= HEADER ================= -->
   <header class="topbar">
     <div class="brand">
-      <div class="orb-wrap">
-        <canvas id="hina-orb" width="56" height="56"></canvas>
-      </div>
       <div class="brand-text">
         <span class="brand-name">HINA</span>
         <span class="brand-status">
@@ -74,8 +71,16 @@
         </button>
         <input type="file" id="file-input" multiple hidden>
 
-        <button type="button" id="mic-btn" class="icon-btn composer-icon" title="Voice input">
+        <button type="button" id="mic-btn" class="icon-btn composer-icon" title="Voice mode">
           <i class="fa-solid fa-microphone"></i>
+        </button>
+
+        <button type="button" id="voice-toggle-btn" class="voice-toggle" role="switch" aria-checked="false" title="Toggle voice replies">
+          <span class="voice-toggle-track">
+            <i class="fa-solid fa-volume-high voice-toggle-icon voice-toggle-icon-on"></i>
+            <i class="fa-solid fa-volume-xmark voice-toggle-icon voice-toggle-icon-off"></i>
+            <span class="voice-toggle-thumb"></span>
+          </span>
         </button>
 
         <textarea
@@ -102,6 +107,7 @@
 
 </div>
 
+<script src="voice-player.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HINA — Live</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="live.css">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+</head>
+<body>
+
+<div id="live-app">
+
+  <header class="live-topbar">
+    <button type="button" id="live-back-btn" class="live-icon-btn" title="Back to chat">
+      <i class="fa-solid fa-arrow-left"></i>
+    </button>
+
+    <div class="live-status">
+      <span class="live-dot" id="live-dot"></span>
+      <span id="live-status-text">Connecting…</span>
+    </div>
+
+    <button type="button" id="live-mute-btn" class="live-icon-btn" title="Mute microphone">
+      <i class="fa-solid fa-microphone"></i>
+    </button>
+  </header>
+
+  <!-- ============ COMPACT REACTIVE VOICE DOCK ============ -->
+  <div class="live-dock" id="live-dock">
+    <div class="live-dock-glow" id="live-dock-glow"></div>
+    <div class="live-dock-inner">
+      <canvas id="live-waveform" class="live-waveform"></canvas>
+    </div>
+    <div class="live-caption" id="live-caption">Tap the mic to start talking</div>
+  </div>
+
+  <!-- ============ BIG SCROLLABLE LIVE STREAM ============ -->
+  <section class="live-stream" id="live-stream">
+    <div class="live-stream-empty" id="live-stream-empty">
+      <div class="live-stream-empty-icon"><i class="fa-solid fa-wave-square"></i></div>
+      <p>Your conversation, and anything HINA finds, builds, or shows you — files, images, web results —
+      will appear here, full width, as it happens.</p>
+    </div>
+  </section>
+
+  <button type="button" id="live-scroll-btn" class="live-scroll-btn hidden" title="Jump to latest">
+    <i class="fa-solid fa-arrow-down"></i>
+  </button>
+
+  <!-- ================= BOTTOM CONTROL ================= -->
+  <footer class="live-controls">
+    <button type="button" id="live-mic-btn" class="live-mic-btn" title="Start / stop talking">
+      <i class="fa-solid fa-microphone"></i>
+    </button>
+    <div class="live-hint">HINA listens, thinks, and replies out loud — hands-free.</div>
+  </footer>
+
+</div>
+
+<script src="voice-player.js"></script>
+<script src="live.js"></script>
+</body>
+</html>

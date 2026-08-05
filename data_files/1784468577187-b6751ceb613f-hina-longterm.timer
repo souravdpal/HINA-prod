@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Hina long-term memory summarizer periodically
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=30min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

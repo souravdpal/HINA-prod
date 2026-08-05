@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AffiliateCart | Handpicked Premium Deals</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .amazon-yellow { background-color: #FF9900; }
+    .amazon-yellow-hover:hover { background-color: #e68a00; }
+    .amazon-dark { background-color: #131921; }
+  </style>
+</head>
+<body class="bg-gray-50 flex flex-col min-h-screen">
+
+  <!-- Nav Bar -->
+  <nav class="amazon-dark text-white sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center space-x-8">
+          <a href="/" class="text-2xl font-black tracking-wider flex items-center space-x-2 text-white">
+            <span class="text-amber-500"><i class="fa-solid fa-cart-shopping"></i></span>
+            <span>DEAL<span class="text-amber-500">ZONE</span></span>
+          </a>
+          <div class="hidden md:flex space-x-4">
+            <a href="/" class="hover:text-amber-500 transition-colors font-medium">Home</a>
+            <a href="/admin" class="hover:text-amber-500 transition-colors font-medium">Dashboard</a>
+          </div>
+        </div>
+        
+        <!-- Search bar inside Nav -->
+        <div class="flex-1 max-w-md mx-8 hidden sm:block">
+          <form action="/" method="GET" class="flex w-full">
+            <input 
+              type="text" 
+              name="search" 
+              placeholder="Search modern accessories, home items..." 
+              value="<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>"
+              class="w-full px-4 py-2 text-black rounded-l-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+            <button type="submit" class="amazon-yellow amazon-yellow-hover px-5 text-dark rounded-r-md transition duration-200">
+              <i class="fa-solid fa-magnifying-glass text-gray-800"></i>
+            </button>
+          </form>
+        </div>
+
+        <div class="flex items-center space-x-4">
+          <span class="text-xs text-gray-400 hidden lg:inline-block">Amazon Partner Store</span>
+          <a href="/admin" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold px-4 py-2 rounded text-sm transition">
+            <i class="fa-solid fa-plus mr-1"></i> Add Product
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main container -->
+  <main class="flex-grow">

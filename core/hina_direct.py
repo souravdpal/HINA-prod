@@ -3,17 +3,18 @@ import os
 import logging
 from summ import get_summary_old
 from model_call import AICaller, Format, Mode
-from sql_db import query
-import re
+from hina_sdk import send_state  # forward to the real bridge, not just local logs
+
 logging.basicConfig(level=logging.INFO, format="[HINA] %(levelname)s: %(message)s")
 logger = logging.getLogger("hina_brain")
 
 
 def _emit(agent_name: str, state: str, msg: str, text: str = "", done: bool = False, **extra):
     """
-    Local drop-in replacement for hina_sdk.send_state.
-    Just logs to stdout/stderr instead of pushing to a websocket/UI layer.
-    Swap this out later for whatever transport you want (print, logging, a queue, etc).
+    Logs locally AND pushes to the websocket/UI bridge via hina_sdk.send_state.
+    Previously this only logged locally, which meant HINA's final response
+    (and the 'done' signal) never reached the frontend -- UI would hang on
+    whatever the last real send_state() call was (e.g. "reading image...").
     """
     payload = {
         "agent_name": agent_name,
@@ -25,9 +26,20 @@ def _emit(agent_name: str, state: str, msg: str, text: str = "", done: bool = Fa
     }
     logger.info(payload)
 
+    # Only pass through kwargs that send_state actually accepts.
+    send_state(
+        agent_name=agent_name,
+        state=state,
+        msg=msg,
+        text=text,
+        done=done,
+        icon=extra.get("icon", "fa-robot"),
+        color=extra.get("color", "slate"),
+        voice=extra.get("voice", False),
+    )
+
 
 def build_context(persona_path: str, summary: str, long_term_memory: str) -> str:
-
     persona = ""
     if os.path.exists(persona_path):
         with open(persona_path, "r") as f:
@@ -46,25 +58,31 @@ def build_context(persona_path: str, summary: str, long_term_memory: str) -> str
     return "\n".join(context_parts)
 
 
-def Hina_res(user_query: str, summary: str = "", long_term_memory: str = "", persona_path: str = "/home/sourav/hina_prod2/core/prompts/model_persona.txt") -> bool:
+def Hina_res(
+    user_query: str,
+    summary: str = "",
+    long_term_memory: str = "",
+    persona_path: str = "/home/sourav/hina_prod2/core/prompts/model_persona.txt",
+    done: bool = True,  # caller controls whether this call is allowed to close the UI turn.
+                        # Pass done=False when something else (e.g. a search-card push)
+                        # still needs to go out on this same turn after Hina_res returns.
+) -> str:
     """
     Core AI execution function. Can be imported as a module or called via sys args.
-    No longer depends on hina_sdk -- status updates are just logged locally.
     """
-    summary=get_summary_old(q=user_query)
+    summary = get_summary_old(q=user_query)
     if not user_query.strip():
         _emit(
             agent_name="HINA",
             state="SYS_GUARD",
             msg="Empty query dropped",
             text="No input provided.",
-            done=False
+            done=done,
         )
         return ""
 
     ai = AICaller()
     full_prompt = build_context(persona_path, summary, long_term_memory)
-    print(full_prompt)
 
     res = ai.call(
         prompt=full_prompt,
@@ -78,15 +96,14 @@ def Hina_res(user_query: str, summary: str = "", long_term_memory: str = "", per
             agent_name="HINA",
             state="HINA..",
             msg="hina responding",
-            text=str(re.sub(r'<think>.*?</think>', '', res.text, flags=re.DOTALL)),
+            text=res.text,
             icon="fa-solid fa-child-dress",
             color="Pink",
             voice=True,
-            done=False
+            done=done,
         )
-        # Return the actual text, not just a bool -- callers (e.g. web_search_mcp.py)
-        # need the real content, not a success flag.
-        return str(str(re.sub(r'<think>.*?</think>', '', res.text, flags=re.DOTALL)))
+        return res.text
+
     else:
         _emit(
             agent_name="HINA",
@@ -94,8 +111,6 @@ def Hina_res(user_query: str, summary: str = "", long_term_memory: str = "", per
             msg="hina error",
             text=str(res.error),
             voice=True,
-            done=False
+            done=done,
         )
         return ""
-
-

@@ -1,0 +1,77 @@
+<%- include('partials/header') %>
+
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+  <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 p-6 md:p-12">
+      
+      <!-- Image Gallery section -->
+      <div class="flex flex-col items-center justify-center bg-gray-50 rounded-xl p-8 border border-gray-100 relative">
+        <span class="absolute top-4 left-4 bg-amber-500 text-slate-950 text-xs font-bold px-3 py-1 rounded-full">
+          <%= product.category %>
+        </span>
+        <img src="<%= product.imageUrl %>" alt="<%= product.title %>" class="max-h-96 object-contain rounded-lg">
+      </div>
+
+      <!-- Information Column -->
+      <div class="flex flex-col justify-between">
+        <div class="space-y-6">
+          <nav class="text-sm text-gray-500 flex items-center space-x-2">
+            <a href="/" class="hover:text-amber-500 transition">Home</a>
+            <span>/</span>
+            <a href="/?category=<%= product.category %>" class="hover:text-amber-500 transition"><%= product.category %></a>
+            <span>/</span>
+            <span class="text-gray-800 font-medium truncate"><%= product.title %></span>
+          </nav>
+
+          <h1 class="text-2xl md:text-3xl font-black text-gray-900 leading-tight">
+            <%= product.title %>
+          </h1>
+
+          <div class="flex items-center space-x-2 text-amber-500">
+            <div class="flex space-x-0.5">
+              <% for (let i = 1; i <= 5; i++) { %>
+                <i class="fa-solid <%= i <= Math.round(product.rating) ? 'fa-star' : 'fa-star-half-stroke' %>"></i>
+              <% } %>
+            </div>
+            <span class="text-gray-600 font-bold text-sm"><%= product.rating %> / 5 Rating</span>
+          </div>
+
+          <div class="border-t border-b border-gray-100 py-4 flex items-baseline gap-2">
+            <span class="text-3xl font-black text-gray-900">$<%= product.price %></span>
+            <span class="text-xs text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded">In Stock</span>
+          </div>
+
+          <div class="space-y-2">
+            <h3 class="font-bold text-gray-900 text-sm">Product Description:</h3>
+            <p class="text-gray-600 text-sm leading-relaxed">
+              <%= product.description %>
+            </p>
+          </div>
+        </div>
+
+        <!-- Buy Action Card -->
+        <div class="mt-8 bg-amber-50 rounded-xl p-5 border border-amber-200">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs text-amber-800 font-semibold"><i class="fa-brands fa-amazon text-lg mr-1 align-middle"></i> Official Amazon Affiliate Link</span>
+            <span class="text-[10px] text-gray-400 font-bold uppercase">Safe Deal</span>
+          </div>
+          
+          <a 
+            href="<%= product.affiliateUrl %>" 
+            target="_blank" 
+            rel="nofollow noopener" 
+            class="amazon-yellow amazon-yellow-hover text-slate-950 font-bold py-3 px-6 rounded-lg text-center w-full block transition shadow-md flex items-center justify-center gap-2"
+          >
+            Check Price on Amazon <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+          </a>
+          <p class="text-[10px] text-gray-500 mt-2 text-center">
+            Clicking will open details securely in Amazon shop tab
+          </p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

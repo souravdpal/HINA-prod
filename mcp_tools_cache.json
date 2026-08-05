@@ -1,0 +1,607 @@
+{
+  "github_mcp": [
+    {
+      "name": "github_get_repo_context",
+      "description": "Fetches high-level repository details: description, stars, forks,\n    open issue/PR counts, primary languages, topics, license, and a README\n    snippet. Use this first when you need orientation on a repo.",
+      "input_schema": {
+        "properties": {
+          "repo_name": {
+            "title": "Repo Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo_name"
+        ],
+        "title": "github_get_repo_contextArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "github_search_repos",
+      "description": "Searches GitHub for repositories matching a query\n    (e.g. 'language:python stars:>1000 llm agent').",
+      "input_schema": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "limit": {
+            "default": 8,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "github_search_reposArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "github_list_branches",
+      "description": "Lists branches on a repository, flagging the default branch.",
+      "input_schema": {
+        "properties": {
+          "repo_name": {
+            "title": "Repo Name",
+            "type": "string"
+          },
+          "limit": {
+            "default": 20,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "repo_name"
+        ],
+        "title": "github_list_branchesArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "github_list_commits",
+      "description": "Lists recent commits on a repo (optionally filtered to a branch\n    and/or file path) with author, message, and short SHA.",
+      "input_schema": {
+        "properties": {
+          "repo_name": {
+            "title": "Repo Name",
+            "type": "string"
+          },
+          "branch": {
+            "default": "",
+            "title": "Branch",
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "path": {
+            "default": "",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo_name"
+        ],
+        "title": "github_list_commitsArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "github_get_file_content",
+      "description": "Fetches the text content of a specific file in a repo at a given\n    ref (branch/tag/sha). Useful for reading source before editing or\n    reviewing. Binary files are reported but not decoded.",
+      "input_schema": {
+        "properties": {
+          "repo_name": {
+            "title": "Repo Name",
+            "type": "string"
+          },
+          "file_path": {
+            "title": "File Path",
+            "type": "string"
+          },
+          "ref": {
+            "default": "",
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo_name",
+          "file_path"
+        ],
+        "title": "github_get_file_contentArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "github_search_code",
+      "description": "Searches code within a specific repository for a string/symbol.\n    Great for 'where is X defined/used' questions.",
+      "input_schema": {
+        "properties": {
+          "repo_name": {
+            "title": "Repo Name",
+            "type": "string"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "repo_name",
+          "query"
+        ],
+        "title": "github_search_codeArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "github_manage_issues",
+      "description": "Manages issues on a repo.\n    Actions:\n      'list'    - top 10 open issues\n      'create'  - needs `title` (and optionally `body`, `labels` comma-separated)\n      'read'    - needs `issue_number`, returns issue + comments\n      'comment' - needs `issue_number` and `comment`\n      'close'   - needs `issue_number`\n      'reopen'  - needs `issue_number`",
+      "input_schema": {
+        "properties": {
+          "repo_name": {
+            "title": "Repo Name",
+            "type": "string"
+          },
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          },
+          "body": {
+            "default": "",
+            "title": "Body",
+            "type": "string"
+          },
+          "issue_number": {
+            "default": 0,
+            "title": "Issue Number",
+            "type": "integer"
+          },
+          "labels": {
+            "default": "",
+            "title": "Labels",
+            "type": "string"
+          },
+          "comment": {
+            "default": "",
+            "title": "Comment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo_name",
+          "action"
+        ],
+        "title": "github_manage_issuesArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "github_actions_logs",
+      "description": "Queries recent GitHub Actions workflow runs, filtered by status\n    ('failure', 'success', 'in_progress', etc.) and returns run metadata\n    for debugging or status reporting.",
+      "input_schema": {
+        "properties": {
+          "repo_name": {
+            "title": "Repo Name",
+            "type": "string"
+          },
+          "status": {
+            "default": "failure",
+            "title": "Status",
+            "type": "string"
+          },
+          "limit": {
+            "default": 5,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "repo_name"
+        ],
+        "title": "github_actions_logsArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "github_rerun_workflow",
+      "description": "Re-triggers a specific workflow run by its numeric run ID\n    (get this from github_actions_logs).",
+      "input_schema": {
+        "properties": {
+          "repo_name": {
+            "title": "Repo Name",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "repo_name",
+          "run_id"
+        ],
+        "title": "github_rerun_workflowArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "github_manage_pull_requests",
+      "description": "Manages pull requests.\n    Actions:\n      'list'    - top 10 open PRs\n      'analyze' - needs `pr_number`, returns diff + metadata for review\n      'create'  - needs `title`, `head`, `base` (and optionally `body`)\n      'comment' - needs `pr_number` and `comment`\n      'merge'   - needs `pr_number` (optionally `merge_method`: merge/squash/rebase)",
+      "input_schema": {
+        "properties": {
+          "repo_name": {
+            "title": "Repo Name",
+            "type": "string"
+          },
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "pr_number": {
+            "default": 0,
+            "title": "Pr Number",
+            "type": "integer"
+          },
+          "title": {
+            "default": "",
+            "title": "Title",
+            "type": "string"
+          },
+          "body": {
+            "default": "",
+            "title": "Body",
+            "type": "string"
+          },
+          "head": {
+            "default": "",
+            "title": "Head",
+            "type": "string"
+          },
+          "base": {
+            "default": "",
+            "title": "Base",
+            "type": "string"
+          },
+          "comment": {
+            "default": "",
+            "title": "Comment",
+            "type": "string"
+          },
+          "merge_method": {
+            "default": "merge",
+            "title": "Merge Method",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo_name",
+          "action"
+        ],
+        "title": "github_manage_pull_requestsArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "github_list_releases",
+      "description": "Lists recent releases/tags for a repo with changelog snippets.",
+      "input_schema": {
+        "properties": {
+          "repo_name": {
+            "title": "Repo Name",
+            "type": "string"
+          },
+          "limit": {
+            "default": 8,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "repo_name"
+        ],
+        "title": "github_list_releasesArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "github_get_notifications",
+      "description": "Fetches the authenticated user's GitHub notifications\n    (mentions, review requests, CI failures on watched repos, etc.).",
+      "input_schema": {
+        "properties": {
+          "limit": {
+            "default": 15,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "unread_only": {
+            "default": true,
+            "title": "Unread Only",
+            "type": "boolean"
+          }
+        },
+        "title": "github_get_notificationsArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "github_star_repo",
+      "description": "Stars or unstars a repository. `action` is 'star' or 'unstar'.",
+      "input_schema": {
+        "properties": {
+          "repo_name": {
+            "title": "Repo Name",
+            "type": "string"
+          },
+          "action": {
+            "default": "star",
+            "title": "Action",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo_name"
+        ],
+        "title": "github_star_repoArguments",
+        "type": "object"
+      }
+    }
+  ],
+  "youtube_mcp": [
+    {
+      "name": "play_youtube",
+      "description": "",
+      "input_schema": {
+        "properties": {
+          "que": {
+            "title": "Que",
+            "type": "string"
+          }
+        },
+        "required": [
+          "que"
+        ],
+        "title": "play_youtubeArguments",
+        "type": "object"
+      }
+    }
+  ],
+  "music_mcp": [
+    {
+      "name": "play_music",
+      "description": "",
+      "input_schema": {
+        "properties": {
+          "que": {
+            "title": "Que",
+            "type": "string"
+          }
+        },
+        "required": [
+          "que"
+        ],
+        "title": "play_musicArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "stop_music",
+      "description": "",
+      "input_schema": {
+        "properties": {
+          "q": {
+            "default": "",
+            "title": "Q",
+            "type": "string"
+          }
+        },
+        "title": "stop_musicArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "pause_music",
+      "description": "",
+      "input_schema": {
+        "properties": {},
+        "title": "pause_musicArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "resume_music",
+      "description": "",
+      "input_schema": {
+        "properties": {},
+        "title": "resume_musicArguments",
+        "type": "object"
+      }
+    }
+  ],
+  "web_search_mcp": [
+    {
+      "name": "web_search_live",
+      "description": "",
+      "input_schema": {
+        "properties": {
+          "querry": {
+            "title": "Querry",
+            "type": "string"
+          }
+        },
+        "required": [
+          "querry"
+        ],
+        "title": "web_search_liveArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "deep_search",
+      "description": "",
+      "input_schema": {
+        "properties": {
+          "querry": {
+            "title": "Querry",
+            "type": "string"
+          }
+        },
+        "required": [
+          "querry"
+        ],
+        "title": "deep_searchArguments",
+        "type": "object"
+      }
+    }
+  ],
+  "image_mcp": [],
+  "memories_mcp": [],
+  "message_mcp": [],
+  "astrophyics_mcp": [
+    {
+      "name": "get_nasa_media_links",
+      "description": "",
+      "input_schema": {
+        "properties": {
+          "query": {
+            "title": "query",
+            "type": "string"
+          },
+          "max_results": {
+            "default": 10,
+            "title": "max_results",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "get_nasa_media_linksArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_astronomy_picture_of_the_day",
+      "description": "Fetch NASA's Astronomy Picture of the Day (APOD).\n    date: optional 'YYYY-MM-DD' string. Defaults to today.",
+      "input_schema": {
+        "properties": {
+          "date": {
+            "default": null,
+            "title": "date",
+            "type": "string"
+          }
+        },
+        "title": "get_astronomy_picture_of_the_dayArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_mars_rover_photos",
+      "description": "Fetch Mars rover photos.\n    rover: 'curiosity', 'opportunity', 'spirit', or 'perseverance'\n    sol: Martian day number since landing (an alternative to earth_date)\n    camera: optional camera abbreviation e.g. 'FHAZ', 'NAVCAM', 'MAST'",
+      "input_schema": {
+        "properties": {
+          "rover": {
+            "default": "curiosity",
+            "title": "rover",
+            "type": "string"
+          },
+          "sol": {
+            "default": 1000,
+            "title": "sol",
+            "type": "string"
+          },
+          "camera": {
+            "default": null,
+            "title": "camera",
+            "type": "string"
+          },
+          "max_results": {
+            "default": 10,
+            "title": "max_results",
+            "type": "string"
+          }
+        },
+        "title": "get_mars_rover_photosArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_near_earth_objects",
+      "description": "Fetch near-Earth asteroid data for a date range (max 7 days).\n    Dates in 'YYYY-MM-DD'. Defaults to today through today.",
+      "input_schema": {
+        "properties": {
+          "start_date": {
+            "default": null,
+            "title": "start_date",
+            "type": "string"
+          },
+          "end_date": {
+            "default": null,
+            "title": "end_date",
+            "type": "string"
+          }
+        },
+        "title": "get_near_earth_objectsArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_iss_location",
+      "description": "Fetch the current real-time latitude/longitude of the International Space Station.",
+      "input_schema": {
+        "properties": {},
+        "title": "get_iss_locationArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "get_people_in_space",
+      "description": "Fetch the list of astronauts currently in space, and which craft they're aboard.",
+      "input_schema": {
+        "properties": {},
+        "title": "get_people_in_spaceArguments",
+        "type": "object"
+      }
+    },
+    {
+      "name": "search_space_info",
+      "description": "Search recent space news/updates directly from NASA, ESA, and ISRO sources\n    (own lightweight RSS/HTML scraper defined in this file \u2014 no external search\n    engine or AI summarizer is used). Good for questions like \"latest Chandrayaan\n    update\" or \"recent NASA Artemis news\".",
+      "input_schema": {
+        "properties": {
+          "query": {
+            "title": "query",
+            "type": "string"
+          },
+          "max_results": {
+            "default": 8,
+            "title": "max_results",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "title": "search_space_infoArguments",
+        "type": "object"
+      }
+    }
+  ]
+}

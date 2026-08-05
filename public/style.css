@@ -3,7 +3,7 @@
    ============================================================ */
 :root {
   /* base surfaces */
-  --bg:            #0d0e11;
+  --bg:            #08090c;
   --surface:       #15161a;
   --surface-2:     #1b1c22;
   --border:        rgba(255,255,255,0.07);
@@ -18,6 +18,13 @@
   --accent:      #7c8aff;
   --accent-ink:  #eef0ff;
   --accent-soft: rgba(124,138,255,0.14);
+  --accent-2:    #d66eeb;
+
+  /* glass / premium layer (v5 redesign — additive, nothing above removed) */
+  --glass-bg:      rgba(21,22,26,0.62);
+  --glass-border:  rgba(255,255,255,0.09);
+  --glow-accent:   0 0 0 1px rgba(124,138,255,0.18), 0 8px 30px rgba(124,138,255,0.12);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* user bubble */
   --user-bg: #22242b;
@@ -103,15 +110,6 @@ body {
 
 .brand { display: flex; align-items: center; gap: 12px; }
 
-.orb-wrap {
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-#hina-orb { width: 34px; height: 34px; }
-
 .brand-text { display: flex; flex-direction: column; line-height: 1.2; }
 .brand-name {
   font-weight: 600;
@@ -189,6 +187,21 @@ body {
   overflow-y: auto;
   padding: 28px 20px 40px;
   scroll-behavior: smooth;
+}
+
+/* Laptop/desktop viewports were leaving a big empty gutter on both
+   sides with a flat 780px cap — widen the column on bigger screens
+   only (mobile/tablet keep the untouched, already-correct rule
+   above). Composer gets the matching treatment further down so the
+   input always lines up under the chat column. */
+@media (min-width: 1024px) {
+  .chat-window { max-width: min(900px, 72vw); }
+}
+@media (min-width: 1440px) {
+  .chat-window { max-width: 1040px; }
+}
+@media (min-width: 1920px) {
+  .chat-window { max-width: 1180px; }
 }
 
 .empty-state {
@@ -282,7 +295,12 @@ body {
 
 /* --- assistant message (no bubble, product-style) --- */
 .msg-agent { display: flex; gap: 12px; align-items: flex-start; }
-.agent-avatar {
+
+/* One consistent avatar for every agent — no more per-message icon
+   / hue picked by the state payload. A single soft ring holding a
+   small gradient core that breathes at rest and quickens while the
+   reply is actively streaming in, then settles once it's done. */
+.agent-avatar.hina-mark {
   width: 26px;
   height: 26px;
   border-radius: 50%;
@@ -291,17 +309,34 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  background: rgba(var(--agent-rgb, 124,138,255), 0.16);
-  color: rgb(var(--agent-rgb, 124,138,255));
-  border: 1px solid rgba(var(--agent-rgb, 124,138,255), 0.3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
 }
+.hina-mark-core {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgb(124,138,255), rgb(214,110,235));
+  animation: markBreathe 2.8s ease-in-out infinite;
+}
+.hina-mark.active .hina-mark-core {
+  animation: markActive 0.9s ease-in-out infinite;
+}
+@keyframes markBreathe {
+  0%, 100% { transform: scale(.8); opacity: .65; }
+  50%      { transform: scale(1.05); opacity: 1; }
+}
+@keyframes markActive {
+  0%, 100% { transform: scale(.75); opacity: .7; }
+  50%      { transform: scale(1.3); opacity: 1; }
+}
+
 .agent-body { flex: 1; min-width: 0; }
 .agent-name {
   font-size: 11.5px;
   font-weight: 600;
   letter-spacing: .02em;
-  color: rgb(var(--agent-rgb, 158,160,168));
+  color: var(--text-3);
   margin-bottom: 4px;
 }
 .agent-text {
@@ -324,6 +359,17 @@ body {
   background: var(--surface);
   overflow: hidden;
   max-width: fit-content;
+  transition: opacity .4s ease, max-height .4s ease, margin .4s ease, padding .4s ease, transform .4s ease;
+}
+/* Once a turn's work is finished, the trace quietly fades and
+   collapses itself out of the layout instead of leaving a
+   permanent "Worked for Xs" strip sitting under every reply. */
+.trace.trace-dismiss {
+  opacity: 0;
+  max-height: 0 !important;
+  margin-bottom: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
 }
 .trace-head {
   display: flex;
@@ -339,7 +385,7 @@ body {
 .trace-head .trace-icon {
   width: 14px;
   text-align: center;
-  color: var(--accent);
+  color: var(--text-3);
 }
 .trace-head .trace-chevron {
   color: var(--text-3);
@@ -347,6 +393,10 @@ body {
   font-size: 10px;
 }
 .trace.open .trace-chevron { transform: rotate(180deg); }
+.trace-label {
+  transition: opacity .18s ease;
+}
+.trace-label.trace-label-fade { opacity: 0; }
 .trace-steps {
   max-height: 0;
   overflow: hidden;
@@ -366,12 +416,18 @@ body {
   font-size: 12px;
   color: var(--text-2);
   border-bottom: 1px solid var(--border);
-  animation: turnIn .2s ease-out;
+  animation: traceStepIn .15s ease-out;
 }
 .trace-step:last-child { border-bottom: none; }
-.trace-step i { width: 12px; text-align: center; font-size: 10px; }
-.trace-step .step-agent { font-weight: 600; color: var(--text-1); }
+/* Quiet, uniform icon — no more per-agent rainbow hash color;
+   the trace is a status log, not a light show. */
+.trace-step i { width: 12px; text-align: center; font-size: 10px; color: var(--text-3) !important; }
+.trace-step .step-agent { font-weight: 600; color: var(--text-2); }
 .trace-step .step-msg { color: var(--text-3); }
+@keyframes traceStepIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 /* ------------------------------------------------------------
    Grouped link cards inside a reasoning trace — replaces what
@@ -415,6 +471,94 @@ body {
 .trace-link-group-grid .search-link-favicon { width: 18px; height: 18px; }
 .trace-link-group-grid .search-link-title { font-size: 12px; }
 .trace-link-group-grid .search-link-host { font-size: 10.5px; }
+
+/* ------------------------------------------------------------
+   Title/image-link cards — flat {title, image_url} tool results
+   (e.g. NASA image search) rendered as a real gallery instead of
+   a dumped wall of JSON/log text.
+   ------------------------------------------------------------ */
+.link-media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.link-media-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  text-decoration: none;
+  color: var(--text-1);
+  animation: turnIn .2s ease-out;
+  transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.link-media-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+}
+.link-media-thumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: var(--surface);
+  overflow: hidden;
+}
+.link-media-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform .25s ease;
+}
+.link-media-card:hover .link-media-thumb img { transform: scale(1.06); }
+.link-media-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-1);
+  padding: 8px 10px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.link-media-go {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--text-1);
+  background: rgba(13,14,17,0.65);
+  border-radius: 999px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity .15s ease, transform .15s ease;
+}
+.link-media-card:hover .link-media-go { opacity: 1; transform: translateY(0); }
+.link-media-card.link-media-broken .link-media-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.link-media-card.link-media-broken .link-media-thumb img { display: none; }
+.link-media-card.link-media-broken .link-media-thumb::after {
+  content: '\f1c5';
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+  color: var(--text-3);
+  font-size: 20px;
+}
+.trace-media-group .link-media-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+.trace-media-group .link-media-title { font-size: 11px; padding: 6px 8px; }
 
 /* ------------------------------------------------------------
    Inline link chip — for a bare URL found in the middle of
@@ -563,21 +707,182 @@ body {
 .thinking-dots {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 3.5px;
 }
 .thinking-dots span {
-  width: 3.5px;
-  height: 3.5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: currentColor;
   animation: dotPulse 1.1s ease-in-out infinite;
   opacity: .3;
+  box-shadow: 0 0 5px 0 currentColor;
 }
 .thinking-dots span:nth-child(2) { animation-delay: .15s; }
 .thinking-dots span:nth-child(3) { animation-delay: .3s; }
 @keyframes dotPulse {
-  0%, 60%, 100% { opacity: .25; transform: translateY(0); }
-  30% { opacity: 1; transform: translateY(-2px); }
+  0%, 60%, 100% { opacity: .25; transform: translateY(0) scale(.85); }
+  30% { opacity: 1; transform: translateY(-2px) scale(1.1); }
+}
+
+/* ------------------------------------------------------------
+   .hina-weave — HINA's signature "thinking" mark. Three tiny
+   beads braid around a shared centerline: each one swings out,
+   dips under the next, and swings back, so the trio reads as one
+   continuous plait rather than a spinner or a shimmering word.
+   Colors drift gently through the palette instead of a fixed
+   accent, so it never looks "stuck" on one agent's hue.
+   ------------------------------------------------------------ */
+.hina-weave {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 14px;
+  position: relative;
+  flex-shrink: 0;
+}
+.hina-weave i {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgb(124,138,255);
+  animation: weaveBraid 1.6s cubic-bezier(.5,0,.5,1) infinite,
+             weaveHue 4.8s linear infinite;
+  box-shadow: 0 0 6px 0 currentColor;
+}
+.hina-weave i:nth-child(1) { left: 0;   animation-delay: 0s,    0s; }
+.hina-weave i:nth-child(2) { left: 5.5px; animation-delay: .18s, -1.6s; }
+.hina-weave i:nth-child(3) { left: 11px; animation-delay: .36s, -3.2s; }
+
+@keyframes weaveBraid {
+  0%   { transform: translateY(3px)  scale(.7);  opacity: .45; }
+  25%  { transform: translateY(-4px) scale(1.15); opacity: 1; }
+  50%  { transform: translateY(1px)  scale(.9);  opacity: .8; }
+  75%  { transform: translateY(-2px) scale(1.05); opacity: .95; }
+  100% { transform: translateY(3px)  scale(.7);  opacity: .45; }
+}
+@keyframes weaveHue {
+  0%   { background: rgb(124,138,255); }
+  33%  { background: rgb(168,140,255); }
+  66%  { background: rgb(214,110,235); }
+  100% { background: rgb(124,138,255); }
+}
+
+/* ============================================================
+   <think>...</think> — model reasoning, shown as a small, quiet,
+   collapsible strip above the answer. Collapsed by default once
+   finished ("Thought process"); expanded + pulsing while the tag
+   is still open ("Thinking"). Each token fades/slides in on its
+   own short stagger so text always reads like it's streaming in,
+   even when the whole block arrived in one payload.
+   ============================================================ */
+.think-block {
+  margin: 2px 0 12px;
+  max-width: 420px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  overflow: hidden;
+  animation: turnIn .2s ease-out;
+}
+.think-block.think-live {
+  border-color: rgba(168,140,255,0.35);
+}
+.think-head {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+.think-head:hover { color: var(--text-2); }
+.think-head .think-icon {
+  font-size: 10px;
+  width: 12px;
+  text-align: center;
+  color: rgb(168,140,255);
+  opacity: .8;
+}
+.think-block.think-live .think-icon { animation: thinkIconPulse 1.4s ease-in-out infinite; }
+@keyframes thinkIconPulse {
+  0%, 100% { opacity: .5; transform: scale(1); }
+  50%      { opacity: 1;  transform: scale(1.12); }
+}
+.think-head .think-label { flex: 0 0 auto; }
+.think-head .thinking-dots { color: rgb(168,140,255); margin-right: 2px; }
+.think-head .think-chevron {
+  margin-left: auto;
+  font-size: 9px;
+  color: var(--text-3);
+  transition: transform .18s ease;
+}
+.think-block.think-open .think-chevron { transform: rotate(180deg); }
+
+.think-body-wrap {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height .22s ease;
+  border-top: 1px solid transparent;
+}
+.think-block.think-open .think-body-wrap {
+  max-height: 220px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+.think-body {
+  padding: 9px 11px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-3);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.think-tok {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(2px);
+  animation: thinkTokIn .5s ease forwards;
+}
+@keyframes thinkTokIn {
+  from { opacity: 0; filter: blur(2px); transform: translateY(2px); }
+  to   { opacity: 1; filter: blur(0);   transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .think-tok { animation: none !important; opacity: 1 !important; filter: none !important; }
+  .think-block.think-live .think-icon { animation: none !important; }
+}
+
+/* Fake-streaming caret — sits at the end of whatever's been revealed
+   so far, blinking, so the reply always reads as "still typing" even
+   though the reveal is client-paced rather than a true token stream. */
+.stream-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: var(--accent);
+  border-radius: 1px;
+  animation: caretBlink 0.9s steps(1) infinite;
+}
+@keyframes caretBlink {
+  0%, 45%  { opacity: 1; }
+  50%, 95% { opacity: 0; }
+  100%     { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stream-caret { animation: none; opacity: .6; }
 }
 
 /* ============================================================
@@ -630,6 +935,43 @@ ol.md-list li::marker { color: var(--accent); font-weight: 600; }
   color: var(--text-2);
   font-style: italic;
 }
+
+/* ============================================================
+   Markdown tables — rendered from "| a | b |" pipe syntax (both
+   the normal multi-line form and the single-line "squished" form
+   some models emit when row newlines get collapsed upstream).
+   ============================================================ */
+.md-table-wrap {
+  margin: 10px 0 14px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.md-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: 420px;
+}
+.md-table thead th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-1);
+  background: var(--surface-2);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-strong);
+  white-space: nowrap;
+}
+.md-table tbody td {
+  padding: 8px 12px;
+  color: var(--text-2);
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  line-height: 1.5;
+}
+.md-table tbody tr:last-child td { border-bottom: none; }
+.md-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+
 .agent-text code:not(.hljs) {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.85em;
@@ -746,6 +1088,15 @@ ol.md-list li::marker { color: var(--accent); font-weight: 600; }
   padding: 6px 6px 6px 10px;
   transition: border-color .15s ease, box-shadow .15s ease;
 }
+@media (min-width: 1024px) {
+  .composer { max-width: min(900px, 72vw); }
+}
+@media (min-width: 1440px) {
+  .composer { max-width: 1040px; }
+}
+@media (min-width: 1920px) {
+  .composer { max-width: 1180px; }
+}
 .composer:focus-within {
   border-color: rgba(124,138,255,0.55);
   box-shadow: 0 0 0 3px var(--accent-soft);
@@ -759,6 +1110,80 @@ ol.md-list li::marker { color: var(--accent); font-weight: 600; }
 
 .composer-icon { color: var(--text-2); flex-shrink: 0; }
 .composer-icon.recording { color: #ff6b6b; }
+
+/* ============================================================
+   Voice reply toggle — advanced sliding switch
+   ============================================================ */
+.voice-toggle {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.voice-toggle-track {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  transition: background 0.25s var(--ease-out-expo), border-color 0.25s var(--ease-out-expo);
+}
+
+.voice-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text-2);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  transition: transform 0.25s var(--ease-out-expo), background 0.25s var(--ease-out-expo);
+}
+
+.voice-toggle-icon {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: var(--text-3);
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.voice-toggle-icon-on  { left: 5px;  opacity: 0; }
+.voice-toggle-icon-off { right: 5px; opacity: 1; }
+
+.voice-toggle[aria-checked="true"] .voice-toggle-track {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: var(--glow-accent);
+}
+
+.voice-toggle[aria-checked="true"] .voice-toggle-thumb {
+  transform: translateX(20px);
+  background: #fff;
+}
+
+.voice-toggle[aria-checked="true"] .voice-toggle-icon-on  { opacity: 1; color: #fff; }
+.voice-toggle[aria-checked="true"] .voice-toggle-icon-off { opacity: 0; }
+
+.voice-toggle:hover .voice-toggle-track { border-color: var(--accent); }
+
+.voice-toggle.syncing .voice-toggle-thumb {
+  animation: voice-toggle-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes voice-toggle-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
 
 #prompt-input {
   flex: 1;
@@ -1041,6 +1466,114 @@ ol.md-list li::marker { color: var(--accent); font-weight: 600; }
 }
 
 /* ============================================================
+   GitHub MCP card — dark neutral shell with per-kind rows
+   (repo overview, issues, PRs, actions, commits, branches, files...)
+   ============================================================ */
+.gh-card {
+  position: relative;
+  margin: 10px 0;
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  overflow: hidden;
+  animation: search-card-in .35s ease both;
+}
+.gh-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #7ee0a8 40%, #59a5ff 60%, transparent);
+  opacity: .75;
+}
+.gh-card-head { display: flex; align-items: center; margin-bottom: 10px; }
+.gh-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-1);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.gh-card-badge i { font-size: 12px; color: var(--text-2); }
+.gh-card-badge-error { color: rgb(var(--state-error)); border-color: rgba(235,90,100,0.35); background: rgba(235,90,100,0.1); }
+.gh-card-badge-error i { color: rgb(var(--state-error)); }
+
+.gh-card-body { color: var(--text-1); font-size: 13.5px; }
+
+.gh-repo-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.gh-repo-desc { color: var(--text-2); font-size: 13px; margin-bottom: 10px; line-height: 1.5; }
+.gh-readme { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 13px; line-height: 1.6; }
+.gh-readme p { margin: 6px 0; }
+
+.gh-stat-row { display: flex; flex-wrap: wrap; gap: 14px; margin: 6px 0 10px; }
+.gh-stat { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--text-2); }
+.gh-stat i { color: var(--text-3); font-size: 11px; }
+
+.gh-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.gh-chip {
+  display: inline-flex; align-items: center;
+  font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.gh-chip-neutral { color: var(--text-2); background: var(--surface-2); }
+.gh-chip-open { color: #52c78c; background: rgba(82,199,140,0.12); border-color: rgba(82,199,140,0.3); }
+.gh-chip-closed { color: rgb(var(--state-error)); background: rgba(235,90,100,0.1); border-color: rgba(235,90,100,0.3); }
+.gh-chip-merged { color: #a87cff; background: rgba(168,124,255,0.12); border-color: rgba(168,124,255,0.3); }
+
+.gh-labels { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.gh-label {
+  font-size: 10.5px; font-weight: 600;
+  padding: 2px 7px; border-radius: 5px;
+  background: rgba(89,165,255,0.12); color: #7cb3ff; border: 1px solid rgba(89,165,255,0.25);
+}
+
+.gh-row { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.gh-row:last-child { border-bottom: none; }
+.gh-row-compact { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
+.gh-row-main { font-size: 13.5px; font-weight: 500; color: var(--text-1); }
+.gh-row-sub { font-size: 12.5px; color: var(--text-2); margin-top: 3px; }
+.gh-row-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 11.5px; color: var(--text-3); margin-top: 5px; align-items: center; }
+.gh-row-author { color: var(--text-2); font-weight: 500; }
+
+.gh-link { color: #6fb0ff; text-decoration: none; }
+.gh-link:hover { text-decoration: underline; }
+
+.gh-sha { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-3); background: var(--surface-2); padding: 1px 6px; border-radius: 4px; }
+
+.gh-comments { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.gh-comment { padding: 10px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--border); }
+.gh-comment-head { font-size: 11.5px; font-weight: 600; color: var(--text-2); margin-bottom: 4px; display: flex; justify-content: space-between; }
+.gh-comment-body { font-size: 13px; line-height: 1.55; }
+
+.gh-result-line { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 500; }
+.gh-result-icon { color: #52c78c; }
+
+.gh-files { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
+.gh-file { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.gh-file-head { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--surface-2); font-size: 12.5px; }
+.gh-file-name { font-family: 'JetBrains Mono', monospace; color: var(--text-1); }
+.gh-file-stats { display: flex; gap: 8px; }
+.gh-add { color: #52c78c; font-size: 11.5px; }
+.gh-del { color: rgb(var(--state-error)); font-size: 11.5px; }
+.gh-patch, .gh-file-content {
+  margin: 0; padding: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11.5px;
+  line-height: 1.5; color: var(--text-2); background: var(--bg-1, #0d0d10);
+  overflow-x: auto; white-space: pre; max-height: 260px; overflow-y: auto;
+}
+
+.gh-unread-dot { font-size: 6px; color: #59a5ff; vertical-align: middle; margin-right: 2px; }
+.gh-error-msg { font-size: 13.5px; font-weight: 500; color: var(--text-1); }
+.gh-error-detail { font-size: 12px; color: var(--text-3); margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+.gh-empty { font-size: 13px; color: var(--text-3); padding: 6px 0; }
+
+/* ============================================================
    Search-results card — rich rendering for raw search/AI-overview
    payloads (query, ai_overview_text, ai_links, organic_results)
    instead of dumping raw JSON at the user.
@@ -1317,7 +1850,95 @@ ol.md-list li::marker { color: var(--accent); font-weight: 600; }
   transform: translate(-3px, 3px);
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
+/* --- bigger astro/space image tiles, add next to your existing
+   .gallery-grid / .gallery-thumb rules in style.css --- */
 
+.gallery-grid-lg {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.gallery-thumb-lg {
+    aspect-ratio: 1 / 1;
+    border-radius: 14px;
+}
+
+.gallery-thumb-lg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* optional: give the astro card body a bit more breathing room since
+   the tiles are now bigger than the web-search gallery's */
+.astro-card .gallery-grid-lg {
+    margin-top: 8px;
+}/* --- bigger astro/space image tiles, add next to your existing
+   .gallery-grid / .gallery-thumb rules in style.css --- */
+
+.gallery-grid-lg {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.gallery-thumb-lg {
+    aspect-ratio: 1 / 1;
+    border-radius: 14px;
+}
+
+.gallery-thumb-lg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* optional: give the astro card body a bit more breathing room since
+   the tiles are now bigger than the web-search gallery's */
+.astro-card .gallery-grid-lg {
+    margin-top: 8px;
+}
+
+/* --- video/audio/file tiles inside the media grid (standardized
+   {title, media_url, media_type} schema) --- */
+
+.gallery-media-tile {
+    background: rgba(255,255,255,0.03);
+    display: flex;
+    flex-direction: column;
+}
+
+.gallery-media-tile video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+    background: #000;
+}
+
+.gallery-audio-tile {
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 12px;
+    aspect-ratio: auto;
+}
+
+.gallery-audio-icon {
+    font-size: 22px;
+    opacity: 0.7;
+}
+
+.gallery-audio-title {
+    font-size: 13px;
+    text-align: center;
+    opacity: 0.85;
+}
+
+.gallery-audio-tile audio {
+    width: 100%;
+}
 @media (max-width: 640px) {
   .search-links-grid { grid-template-columns: 1fr; }
   .search-card { padding: 14px; }
@@ -1335,4 +1956,524 @@ ol.md-list li::marker { color: var(--accent); font-weight: 600; }
 /* respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+/* ============================================================
+   ============================================================
+   HINA v5 — PREMIUM REDESIGN LAYER
+   Purely additive: reuses every existing selector/ID from the
+   markup and app.js above, only changes how things *look* and
+   *move*. Nothing here renames a class, so app.js needs zero
+   changes.
+   ============================================================
+   ============================================================ */
+
+@keyframes auroraDrift {
+  0%   { transform: translate(0,0) rotate(0deg) scale(1); }
+  50%  { transform: translate(3%, -4%) rotate(8deg) scale(1.08); }
+  100% { transform: translate(-2%, 3%) rotate(-6deg) scale(1); }
+}
+
+body {
+  position: relative;
+  background: var(--bg);
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(124,138,255,0.10), transparent 40%),
+    radial-gradient(circle at 82% 18%, rgba(214,110,235,0.08), transparent 42%),
+    radial-gradient(circle at 50% 92%, rgba(45,190,190,0.06), transparent 45%);
+  animation: auroraDrift 26s ease-in-out infinite alternate;
+  filter: blur(10px);
+}
+.app { position: relative; z-index: 1; }
+
+/* ---------------- Topbar: floating glass strip ---------------- */
+.topbar {
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border-bottom: 1px solid var(--glass-border);
+  position: relative;
+}
+.topbar::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(124,138,255,0.55), rgba(214,110,235,0.45), transparent);
+  opacity: .7;
+}
+
+.brand-name {
+  background: linear-gradient(100deg, var(--text-1) 30%, var(--accent) 55%, var(--accent-2) 70%, var(--text-1) 90%);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: brandShimmer 7s linear infinite;
+  letter-spacing: -0.01em;
+}
+@keyframes brandShimmer {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 220% 50%; }
+}
+
+.status-dot { box-shadow: 0 0 0 0 rgba(124,138,255,0); }
+
+.icon-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all .2s var(--ease-out-expo);
+}
+.icon-btn:hover {
+  background: var(--surface-2);
+  border-color: var(--glass-border);
+  box-shadow: var(--glow-accent);
+  transform: translateY(-1px);
+}
+.icon-btn:active { transform: translateY(0) scale(.94); }
+
+/* ---------------- Chat window ---------------- */
+.chat-window {
+  mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 18px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 24px, #000 calc(100% - 18px), transparent 100%);
+}
+
+.empty-orb {
+  background: linear-gradient(145deg, var(--accent-soft), rgba(214,110,235,0.12));
+  box-shadow: 0 0 0 1px rgba(124,138,255,0.18), 0 10px 30px rgba(124,138,255,0.15);
+  animation: emptyOrbFloat 4.5s ease-in-out infinite;
+}
+@keyframes emptyOrbFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+.empty-state h1 {
+  background: linear-gradient(100deg, var(--text-1), var(--text-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.turn { animation: turnIn .45s var(--ease-out-expo) both; }
+
+.msg-user .bubble {
+  background: linear-gradient(165deg, #262832, #1e2027);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 6px 18px rgba(0,0,0,0.28);
+  transition: transform .18s ease;
+}
+
+.agent-avatar {
+  box-shadow: 0 0 0 3px rgba(124,138,255,0.06);
+  transition: box-shadow .3s ease;
+}
+.msg-agent:hover .agent-avatar {
+  box-shadow: 0 0 0 5px rgba(124,138,255,0.1);
+}
+
+.agent-text a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(124,138,255,0.35); }
+.agent-text a:hover { border-bottom-color: var(--accent); }
+.agent-text code:not(pre code) {
+  background: rgba(124,138,255,0.10);
+  border: 1px solid rgba(124,138,255,0.18);
+  color: var(--accent-ink);
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: .88em;
+}
+.md-highlight {
+  background: linear-gradient(120deg, var(--md-highlight-bg), rgba(214,110,235,0.14));
+  box-shadow: inset 0 0 0 1px var(--md-highlight-ring);
+  border-radius: 4px;
+  padding: 0 3px;
+}
+
+/* ---------------- Trace / think blocks: subtle glass ---------------- */
+.trace, .think-block {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.trace:hover, .think-block:hover { border-color: var(--border-strong); }
+.think-block.think-live {
+  box-shadow: 0 0 0 1px rgba(168,140,255,0.18), 0 6px 20px rgba(168,140,255,0.10);
+}
+
+/* ---------------- Scroll to bottom ---------------- */
+.scroll-bottom-btn {
+  backdrop-filter: blur(10px);
+  transition: opacity .2s var(--ease-out-expo), transform .2s var(--ease-out-expo), box-shadow .2s ease;
+}
+.scroll-bottom-btn:hover { box-shadow: var(--glow-accent); }
+
+/* ---------------- Composer: floating glass capsule ---------------- */
+.composer-shell { padding: 0 20px 18px; }
+.composer {
+  position: relative;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  padding: 4px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+  transition: border-color .25s ease, box-shadow .25s ease;
+}
+.composer::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(120deg, rgba(124,138,255,0), rgba(124,138,255,0.5), rgba(214,110,235,0.4), rgba(124,138,255,0));
+  background-size: 260% 100%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity .3s ease;
+  animation: composerBorderFlow 5s linear infinite;
+  pointer-events: none;
+}
+.composer:focus-within::before { opacity: 1; }
+.composer:focus-within {
+  box-shadow: 0 14px 46px rgba(0,0,0,0.4), var(--glow-accent);
+}
+@keyframes composerBorderFlow {
+  0%   { background-position: 0% 0; }
+  100% { background-position: 260% 0; }
+}
+
+.composer-row { position: relative; z-index: 1; }
+
+#prompt-input { transition: color .15s ease; }
+
+.send-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  transition: transform .18s var(--ease-out-expo), box-shadow .2s ease, opacity .2s ease;
+  box-shadow: 0 4px 14px rgba(124,138,255,0.3);
+}
+.send-btn:not(:disabled):hover { transform: translateY(-1px) scale(1.04); box-shadow: 0 6px 20px rgba(124,138,255,0.45); }
+.send-btn:not(:disabled):active { transform: scale(.95); }
+.send-btn:disabled { background: var(--surface-2); box-shadow: none; opacity: .5; }
+
+.mic-btn.recording, #mic-btn.recording {
+  color: rgb(var(--state-voice));
+  animation: micRecPulse 1.3s ease-in-out infinite;
+}
+@keyframes micRecPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(45,209,230,.45); }
+  50%      { box-shadow: 0 0 0 8px rgba(45,209,230,0); }
+}
+
+.mcp-pill {
+  animation: turnIn .25s var(--ease-out-expo) both;
+  box-shadow: 0 2px 10px rgba(124,138,255,0.15);
+}
+
+.attach-chip-row > * { animation: turnIn .2s var(--ease-out-expo) both; }
+
+.composer-hint { opacity: .55; transition: opacity .2s ease; }
+.composer-shell:hover .composer-hint { opacity: .8; }
+
+/* ---------------- Selection & focus ---------------- */
+::selection { background: rgba(124,138,255,0.35); color: #fff; }
+:focus-visible { outline: 2px solid rgba(124,138,255,0.6); outline-offset: 2px; }
+
+/* ---------------- Buttons/pills used across search & gallery cards ---------------- */
+.search-link-card, .link-media-card, .gallery-thumb {
+  transition: border-color .2s var(--ease-out-expo), background .2s ease, transform .2s var(--ease-out-expo), box-shadow .25s ease;
+}
+.search-link-card:hover { box-shadow: 0 8px 22px rgba(124,138,255,0.14); }
+
+@media (prefers-reduced-motion: reduce) {
+  body::before, .brand-name, .hina-weave i, .empty-orb, .composer::before { animation: none !important; }
+}
+/* ============================================================
+   HINA file cards — links to /download/hina/files/<name>
+   ============================================================ */
+.hina-file-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--code-border, var(--border));
+  background: var(--code-bg, var(--surface-1));
+  max-width: 420px;
+}
+.hina-file-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 15px;
+}
+.hina-file-info { flex: 1; min-width: 0; }
+.hina-file-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'JetBrains Mono', monospace;
+}
+.hina-file-sub {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+.hina-file-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+/* Compact grid of files — used for list_files()-style payloads
+   ({file_count, files:[...]}) where there's no per-file view/download
+   url, just a name. Reuses the same card look, no actions row. */
+.hina-file-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+.hina-file-card-compact {
+  margin: 0;
+  max-width: none;
+  padding: 10px 12px;
+}
+.hina-file-card-compact .hina-file-icon { width: 30px; height: 30px; font-size: 13px; }
+.hina-file-btn {
+  font-size: 11px;
+  color: var(--text-2);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+}
+.hina-file-btn:hover {
+  color: var(--text-1);
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+.hina-file-view-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ---- File view modal ---- */
+.hina-file-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hina-file-modal.hidden { display: none; }
+.hina-file-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(2px);
+}
+.hina-file-modal-panel {
+  position: relative;
+  width: min(920px, 92vw);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--code-bg, var(--bg));
+  border: 1px solid var(--code-border, var(--border));
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+}
+.hina-file-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--code-header, var(--surface-1));
+  border-bottom: 1px solid var(--code-border, var(--border));
+}
+.hina-file-modal-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hina-file-modal-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.hina-file-modal-body {
+  overflow: auto;
+  padding: 0;
+}
+.hina-file-modal-body .code-canvas { margin: 0; border: none; border-radius: 0; }
+.hina-file-modal-body .code-body { max-height: none; }
+.hina-file-modal-loading,
+.hina-file-modal-error {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 13px;
+}
+.hina-file-modal-error { color: #e07070; }
+
+/* ============================================================
+   Mobile responsiveness — additive only, nothing above is
+   changed. This brings the main chat page in line with how
+   live.html already behaves on phones: no horizontal scroll, no
+   iOS input-zoom, bigger tap targets, and layout that survives
+   the on-screen keyboard opening/closing.
+   ============================================================ */
+
+/* iOS Safari (and some Android browsers) resize the visual
+   viewport when the keyboard opens rather than firing a resize
+   the layout can react to cleanly with 100vh, which is what makes
+   `.app { height: 100vh }` jump/clip on mobile. `100dvh` tracks the
+   real visible viewport; vh stays as the fallback for browsers that
+   don't support it yet. */
+.app {
+  height: 100vh;
+  height: 100dvh;
+  /* --app-vh is set by app.js from window.visualViewport.height,
+     which tracks the keyboard opening/closing more reliably than
+     dvh on some Android browsers. Falls back to dvh above when JS
+     hasn't run yet or visualViewport isn't supported. */
+  height: var(--app-vh, 100dvh);
+  /* body is now locked (position:fixed, no scroll) — .app is the
+     real viewport-height box. overscroll-behavior:contain stops an
+     iOS rubber-band drag at the top/bottom of .chat-window from
+     "leaking" into a page-level bounce, which was the other way
+     the layout could end up visibly offset. */
+  overscroll-behavior: contain;
+}
+
+.chat-window {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+html, body {
+  /* Nothing in the layout should ever need to scroll sideways —
+     if something overflows (a long code line, a wide table) it
+     should scroll internally, not push the whole page. */
+  overflow-x: hidden;
+  /* Lock the *document* from scrolling at all, in either axis.
+     .app is a fixed-height flex column that already has its own
+     internal scroll areas (.chat-window, .code-body, etc). Without
+     this, focusing #prompt-input on mobile makes the browser
+     auto-scroll the whole page into view to "help" — since nothing
+     ever scrolls it back, the composer visibly slides and the page
+     stays permanently offset afterwards. Locking body scroll makes
+     that browser behavior a no-op. */
+  overflow-y: hidden;
+  overscroll-behavior: none;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+}
+
+/* Flex items default to min-width:auto, which means they refuse to
+   shrink below their own content width and silently overflow the
+   row sideways instead of wrapping. That's what makes the composer
+   row "slide"/mismatch on narrow screens once icons + growing
+   textarea compete for space. Forcing min-width:0 lets them shrink
+   like the rest of the (already-working) layout does. */
+.composer,
+.composer-row,
+#prompt-input,
+.topbar-actions,
+.brand {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  /* ---- header ---- */
+  .topbar { padding: 8px 12px; }
+  .brand-name { font-size: 13.5px; }
+  .brand-status { font-size: 10.5px; }
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 15px;
+  } /* comfortable thumb targets instead of the 32px desktop hit area */
+
+  /* ---- chat area ---- */
+  .chat-window { padding: 16px 12px 24px; }
+  .empty-state { height: 50vh; padding: 0 12px; }
+  .empty-state h1 { font-size: 18px; }
+
+  .msg-user .bubble {
+    max-width: 90%;
+    font-size: 14.5px;
+    padding: 9px 13px;
+  }
+  .msg-agent { gap: 10px; }
+
+  .scroll-bottom-btn {
+    bottom: 12px;
+    width: 38px;
+    height: 38px;
+  }
+
+  /* wide content (tables, code) already scrolls internally via
+     .md-table-wrap / .code-canvas — just tighten the side padding
+     so it isn't fighting the narrower screen for space */
+  .gallery-grid, .gallery-grid-lg {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  }
+
+  /* ---- composer ---- */
+  /* extra side margin so the capsule doesn't run edge-to-edge —
+     that's what was reading as "too wide / messy" on phones */
+  .composer-shell { padding: 0 14px 12px; }
+  .composer { padding: 6px 5px; border-radius: 20px; max-width: 560px; margin: 0 auto; }
+  .composer-row { gap: 4px; }
+  .composer-icon { width: 38px; height: 38px; }
+
+  /* 16px is the magic number — anything smaller makes iOS Safari
+     zoom the whole page in when the textarea is focused, which is
+     the single most disruptive mobile bug a chat composer can have */
+  #prompt-input { font-size: 16px; padding: 9px 4px; }
+
+  .send-btn { width: 38px; height: 38px; }
+  .voice-toggle { transform: scale(0.92); }
+
+  /* the @-mention tool dropdown was sized for desktop (fixed
+     300px, anchored 6px from the left) — on a narrow phone that
+     can run past the right edge of the screen entirely */
+  .mcp-dropdown {
+    width: calc(100vw - 20px);
+    max-width: 360px;
+    left: 0;
+  }
+
+  .attach-chip-row { gap: 6px; }
+
+  /* ---- file cards / modal ---- */
+  .hina-file-card { padding: 10px 12px; gap: 10px; max-width: 100%; }
+  .hina-file-modal-panel { width: 96vw; max-height: 90vh; }
+  .hina-file-modal-name { font-size: 12px; }
+}
+
+@media (max-width: 380px) {
+  /* very small phones (SE-class widths) — a little more room to breathe */
+  .msg-user .bubble { max-width: 94%; }
+  .composer-icon, .icon-btn, .send-btn { width: 36px; height: 36px; }
 }

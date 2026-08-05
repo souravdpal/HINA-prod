@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartPicks | Curated Best-Sellers & Amazon Deals</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Alpine.js for interactive state management -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans" x-data="app()">
+
+    <!-- Affiliate Disclosure Banner -->
+    <div class="bg-amber-500 text-slate-950 text-xs py-2 px-4 text-center font-semibold">
+        <i class="fa-solid fa-circle-info mr-1"></i> As an Amazon Associate, we earn from qualifying purchases. This comes at no extra cost to you.
+    </div>
+
+    <!-- Header / Navbar -->
+    <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-100 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+            <!-- Logo -->
+            <a href="#" class="flex items-center space-x-2">
+                <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
+                    <i class="fa-solid fa-bolt text-lg"></i>
+                </div>
+                <span class="text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-600 to-indigo-800 bg-clip-text text-transparent">SmartPicks</span>
+            </a>
+
+            <!-- Search Bar -->
+            <div class="hidden md:flex flex-1 max-w-md relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </span>
+                <input type="text" 
+                       x-model="searchQuery" 
+                       placeholder="Search handpicked premium gear..." 
+                       class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm outline-none bg-slate-50 focus:bg-white" />
+                <button x-show="searchQuery" @click="searchQuery = ''" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Header Action Items -->
+            <div class="flex items-center gap-4">
+                <!-- Tag Config Button (Interactive for site owner) -->
+                <button @click="showTagModal = true" class="relative group flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-sm transition-all">
+                    <i class="fa-solid fa-tags text-indigo-600"></i>
+                    <span class="hidden lg:inline">Affiliate ID:</span>
+                    <span class="font-bold text-indigo-700" x-text="shortenTag(associateTag)"></span>
+                </button>
+
+                <!-- Wishlist Trigger -->
+                <button @click="showWishlist = true" class="relative p-2 text-slate-600 hover:text-indigo-600 transition-all">
+                    <i class="fa-solid fa-heart text-xl"></i>
+                    <span x-show="wishlist.length" x-text="wishlist.length" class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold"></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="relative bg-gradient-to-b from-indigo-50 via-white to-transparent pt-12 pb-8 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100 mb-6">
+                <i class="fa-solid fa-star text-amber-500"></i> Quality & Affordability Curated Daily
+            </span>
+            <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-none mb-6">
+                Premium Tech & Gear, <br class="hidden sm:inline" />
+                <span class="bg-gradient-to-r from-indigo-600 to-amber-500 bg-clip-text text-transparent">Verified & Rated.</span>
+            </h1>
+            <p class="max-w-2xl mx-auto text-slate-600 text-base md:text-lg mb-8 leading-relaxed">
+                Save hours of research. We compare prices, aggregate user feedback, and test performance to suggest only the finest products on Amazon.
+            </p>
+
+            <!-- Search for mobile -->
+            <div class="md:hidden max-w-sm mx-auto mb-6 relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </span>
+                <input type="text" 
+                       x-model="searchQuery" 
+                       placeholder="Search products..." 
+                       class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm outline-none bg-white shadow-sm" />
+            </div>
+
+            <!-- Category Navigation -->
+            <div class="flex flex-wrap justify-center items-center gap-2 mt-4">
+                <button @click="selectedCategory = 'All'" 
+                        :class="selectedCategory === 'All' ? 'bg-indigo-600 text-white' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'"
+                        class="px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm">
+                    All Categories
+                </button>
+                <template x-for="cat in categories" :key="cat">
+                    <button @click="selectedCategory = cat" 
+                            :class="selectedCategory === cat ? 'bg-indigo-600 text-white' : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200'"
+                            class="px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm flex items-center gap-2">
+                        <i :class="getCategoryIcon(cat)" class="text-indigo-500"></i>
+                        <span x-text="cat"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content Grid -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <!-- Filter Controls -->
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
+            <p class="text-sm text-slate-500">
+                Showing <span class="font-semibold text-slate-900" x-text="filteredProducts.length"></span> premium finds
+            </p>
+            <div class="flex items-center gap-3 w-full sm:w-auto">
+                <span class="text-sm font-medium text-slate-500 whitespace-nowrap"><i class="fa-solid fa-arrow-down-wide-short mr-1"></i> Sort By:</span>
+                <select x-model="sortBy" class="w-full sm:w-48 bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm">
+                    <option value="featured">Featured Picks</option>
+                    <option value="price-low-high">Price: Low to High</option>
+                    <option value="price-high-low">Price: High to Low</option>
+                    <option value="rating">Highest Rated</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Zero State -->
+        <div x-show="filteredProducts.length === 0" class="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200 shadow-sm" x-cloak>
+            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fa-solid fa-box-open text-2xl text-slate-400"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800">No matching smart picks found</h3>
+            <p class="text-slate-500 mt-1">Try adjusting your filters or search terms.</p>
+            <button @click="resetFilters" class="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-all shadow-md">
+                Reset Filters
+            </button>
+        </div>
+
+        <!-- Products Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            <template x-for="product in filteredProducts" :key="product.id">
+                <div class="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:border-slate-200 transition-all duration-300 flex flex-col overflow-hidden relative">
+                    <!-- Badges -->
+                    <div class="absolute top-3 left-3 z-10 flex flex-col gap-1.5">
+                        <span x-show="product.badge" class="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded-lg bg-amber-500 text-slate-950 shadow-sm" x-text="product.badge"></span>
+                        <span x-show="product.discount" class="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded-lg bg-rose-500 text-white shadow-sm" x-text="product.discount"></span>
+                    </div>
+
+                    <!-- Wishlist absolute button -->
+                    <button @click.stop="toggleWishlist(product.id)" class="absolute top-3 right-3 z-10 w-9 h-9 bg-white/80 hover:bg-white backdrop-blur-md rounded-full shadow-md flex items-center justify-center transition-all text-slate-400 hover:text-rose-500">
+                        <i :class="isWishlisted(product.id) ? 'fa-solid fa-heart text-rose-500 scale-110' : 'fa-regular fa-heart'"></i>
+                    </button>
+
+                    <!-- Product Image Container -->
+                    <div class="relative pt-[100%] bg-slate-50 overflow-hidden cursor-pointer" @click="openModal(product)">
+                        <img :src="product.imageUrl" :alt="product.title" class="absolute inset-0 w-full h-full object-contain p-6 transform group-hover:scale-105 transition-transform duration-300" />
+                    </div>
+
+                    <!-- Card Body -->
+                    <div class="p-5 flex flex-col flex-1">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-600 mb-1" x-text="product.category"></span>
+                        <h3 class="font-semibold text-slate-800 text-sm md:text-base line-clamp-2 min-h-[2.5rem] hover:text-indigo-600 cursor-pointer" @click="openModal(product)" x-text="product.title"></h3>
+                        
+                        <!-- Ratings -->
+                        <div class="flex items-center gap-1.5 mt-2 mb-3">
+                            <div class="flex text-amber-400 text-xs">
+                                <template x-for="star in 5">
+                                    <i :class="star <= Math.floor(product.rating) ? 'fa-solid fa-star' : (star - 0.5 <= product.rating ? 'fa-solid fa-star-half-stroke' : 'fa-regular fa-star')"></i>
+                                </template>
+                            </div>
+                            <span class="text-xs font-semibold text-slate-500" x-text="product.rating"></span>
+                            <span class="text-xs text-slate-400" x-text="'(' + formatNumber(product.reviewsCount) + ')'"></span>
+                        </div>
+
+                        <!-- Price / Shop Buttons -->
+                        <div class="mt-auto pt-4 border-t border-slate-50 flex items-center justify-between">
+                            <div>
+                                <span class="text-xs text-slate-400 block line-through" x-show="product.originalPrice" x-text="formatCurrency(product.originalPrice)"></span>
+                                <span class="text-lg font-bold text-slate-900" x-text="formatCurrency(product.price)"></span>
+                            </div>
+                            <a :href="getAffiliateUrl(product.amazonUrl)" target="_blank" rel="noopener noreferrer" class="bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-md shadow-amber-100">
+                                View Deal <i class="fa-solid fa-up-right-from-square text-[10px]"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </main>
+
+    <!-- Product Detail Modal -->
+    <div x-show="modalOpen" class="fixed inset-0 z-50 overflow-y-auto" style="display: none;" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="closeModal()"></div>
+
+        <!-- Modal Container -->
+        <div class="flex min-h-screen items-center justify-center p-4">
+            <div class="bg-white rounded-3xl w-full max-w-4xl shadow-2xl relative z-10 overflow-hidden transform transition-all border border-slate-100" @click.away="closeModal()" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="scale-95 translate-y-4 opacity-0" x-transition:enter-end="scale-100 translate-y-0 opacity-100">
+                <!-- Close Button -->
+                <button @click="closeModal()" class="absolute top-4 right-4 w-10 h-10 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full flex items-center justify-center transition-all z-20">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-4">
+                    <!-- Left: Images -->
+                    <div class="p-8 bg-slate-50 flex items-center justify-center relative min-h-[300px]">
+                        <img :src="selectedProduct.imageUrl" :alt="selectedProduct.title" class="max-h-[320px] object-contain transition-all" />
+                        <span x-show="selectedProduct.discount" class="absolute top-4 left-4 px-3 py-1 bg-rose-500 text-white font-bold text-xs uppercase tracking-wider rounded-xl" x-text="selectedProduct.discount"></span>
+                    </div>
+
+                    <!-- Right: Content -->
+                    <div class="p-8 flex flex-col justify-between">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-widest text-indigo-600 mb-2 block" x-text="selectedProduct.category"></span>
+                            <h2 class="text-xl md:text-2xl font-bold text-slate-900 leading-snug mb-3" x-text="selectedProduct.title"></h2>
+                            
+                            <!-- Rating -->
+                            <div class="flex items-center gap-2 mb-4">
+                                <div class="flex text-amber-400 text-sm">
+                                    <template x-for="star in 5">
+                                        <i :class="star <= Math.floor(selectedProduct.rating) ? 'fa-solid fa-star' : (star - 0.5 <= selectedProduct.rating ? 'fa-solid fa-star-half-stroke' : 'fa-regular fa-star')"></i>
+                                    </template>
+                                </div>
+                                <span class="text-sm font-bold text-slate-700" x-text="selectedProduct.rating"></span>
+                                <span class="text-sm text-slate-400" x-text="'(' + formatNumber(selectedProduct.reviewsCount || 0) + ' reviews)'"></span>
+                            </div>
+
+                            <!-- Bullet details -->
+                            <div class="space-y-2 mb-6">
+                                <template x-for="bullet in selectedProduct.bullets" :key="bullet">
+                                    <div class="flex items-start gap-2 text-sm text-slate-600">
+                                        <i class="fa-regular fa-circle-check text-emerald-500 mt-1 flex-shrink-0"></i>
+                                        <span x-text="bullet"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                        <!-- Pricing and Call To Action -->
+                        <div class="border-t border-slate-100 pt-6">
+                            <div class="flex items-baseline gap-2 mb-4">
+                                <span class="text-3xl font-extrabold text-slate-950" x-text="formatCurrency(selectedProduct.price || 0)"></span>
+                                <span class="text-sm text-slate-400 line-through" x-show="selectedProduct.originalPrice" x-text="formatCurrency(selectedProduct.originalPrice || 0)"></span>
+                                <span class="text-xs text-rose-500 font-bold bg-rose-50 px-2 py-0.5 rounded-lg" x-show="selectedProduct.discount" x-text="'Save ' + selectedProduct.discount"></span>
+                            </div>
+
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <a :href="getAffiliateUrl(selectedProduct.amazonUrl)" target="_blank" rel="noopener noreferrer" class="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-center py-4 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-200">
+                                    <i class="fa-brands fa-amazon text-lg"></i> Buy on Amazon
+                                </a>
+                                <button @click="toggleWishlist(selectedProduct.id)" class="px-5 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl flex items-center justify-center gap-2 transition-all">
+                                    <i :class="isWishlisted(selectedProduct.id) ? 'fa-solid fa-heart text-rose-500' : 'fa-regular fa-heart'"></i>
+                                    <span x-text="isWishlisted(selectedProduct.id) ? 'Wishlisted' : 'Save Pick'"></span>
+                                </button>
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-3 text-center">
+                                Prices and availability are accurate as of the date/time indicated and are subject to change.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wishlist Sidebar Drawer -->
+    <div x-show="showWishlist" class="fixed inset-0 z-50 overflow-hidden" style="display: none;" x-cloak>
+        <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-xs transition-opacity" @click="showWishlist = false"></div>
+        <div class="absolute inset-y-0 right-0 max-w-full flex pl-10">
+            <div class="w-screen max-w-md bg-white shadow-2xl flex flex-col" @click.away="showWishlist = false">
+                <div class="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-heart text-rose-500"></i> My Saved Picks (<span x-text="wishlist.length"></span>)
+                    </h2>
+                    <button @click="showWishlist = false" class="p-2 -mr-2 text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+
+                <!-- Wishlist Items -->
+                <div class="flex-1 overflow-y-auto p-6 space-y-4">
+                    <template x-show="wishlist.length === 0">
+                        <div class="text-center py-12">
+                            <i class="fa-regular fa-heart text-4xl text-slate-300 mb-3 block"></i>
+                            <p class="text-slate-500 text-sm">Your wish list is currently empty.</p>
+                            <button @click="showWishlist = false" class="mt-4 text-xs font-semibold text-indigo-600 hover:underline">Browse Products</button>
+                        </div>
+                    </template>
+
+                    <template x-for="item in wishlistItems" :key="item.id">
+                        <div class="flex gap-4 p-3 rounded-xl hover:bg-slate-50 border border-slate-100 transition-all relative">
+                            <div class="w-16 h-16 bg-white rounded-lg border border-slate-200 overflow-hidden flex-shrink-0 p-2 flex items-center justify-center">
+                                <img :src="item.imageUrl" :alt="item.title" class="object-contain max-h-full" />
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="text-xs font-semibold text-slate-800 truncate" x-text="item.title"></h4>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="text-sm font-bold text-slate-900" x-text="formatCurrency(item.price)"></span>
+                                    <span class="text-[10px] text-slate-400 line-through" x-show="item.originalPrice" x-text="formatCurrency(item.originalPrice)"></span>
+                                </div>
+                                <a :href="getAffiliateUrl(item.amazonUrl)" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-amber-600 hover:text-amber-700">
+                                    Shop on Amazon <i class="fa-solid fa-chevron-right text-[8px]"></i>
+                                </a>
+                            </div>
+                            <button @click="toggleWishlist(item.id)" class="absolute top-2 right-2 text-slate-400 hover:text-rose-500">
+                                <i class="fa-solid fa-trash text-xs"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Footer Checkout / Back -->
+                <div class="border-t border-slate-100 p-6 bg-slate-50">
+                    <p class="text-xs text-slate-500 mb-4 text-center">Items are saved locally to your device.</p>
+                    <button @click="showWishlist = false" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl text-sm transition-all shadow-md">
+                        Continue Exploring
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Associate Tag Settings Modal (Extremely useful for affiliate website deployment) -->
+    <div x-show="showTagModal" class="fixed inset-0 z-50 flex items-center justify-center p-4" style="display: none;" x-cloak>
+        <div class="fixed inset-0 bg-slate-950/55 backdrop-blur-xs" @click="showTagModal = false"></div>
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl relative z-10 border border-slate-100">
+            <button @click="showTagModal = false" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+                    <i class="fa-solid fa-sliders text-lg"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900">Configure Affiliate ID</h3>
+                    <p class="text-xs text-slate-500">Dynamically update all outbound Amazon affiliate links.</p>
+                </div>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Amazon Associate Tag</label>
+                    <input type="text" x-model="associateTag" placeholder="e.g., yourname-20" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-semibold text-indigo-700" />
+                </div>
+                <p class="text-xs text-slate-500 leading-relaxed">
+                    Set your own Amazon Associates tracking ID above. All buy buttons across the site will instantly append your tag (<code class="bg-slate-100 px-1 py-0.5 rounded text-indigo-600 font-bold" x-text="'?tag=' + associateTag"></code>) to ensure you earn standard commissions.
+                </p>
+                <div class="flex gap-2 pt-2">
+                    <button @click="saveTag()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl text-sm transition-all">
+                        Save Configuration
+                    </button>
+                    <button @click="resetTag()" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm transition-all font-semibold">
+                        Reset Default
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 pt-16 pb-8 border-t border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
+                <!-- Branding column -->
+                <div class="md:col-span-2 space-y-4">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                            <i class="fa-solid fa-bolt text-lg"></i>
+                        </div>
+                        <span class="text-xl font-bold tracking-tight text-white">SmartPicks</span>
+                    </div>
+                    <p class="text-sm max-w-sm leading-relaxed">
+                        We curate top-performing products with excellent reviews to save you time and maximize your budget. Get the absolute best of Amazon's curated marketplace.
+                    </p>
+                </div>
+
+                <!-- Navigation Columns -->
+                <div>
+                    <h4 class="text-white text-sm font-bold uppercase tracking-wider mb-4">Quick Links</h4>
+                    <ul class="space-y-2.5 text-sm">
+                        <li><a href="#" class="hover:text-white transition-all">Latest Deals</a></li>
+                        <li><a href="#" class="hover:text-white transition-all">Top Trending Tech</a></li>
+                        <li><a href="#" class="hover:text-white transition-all">Home & Kitchen Picks</a></li>
+                        <li><a href="#" @click.prevent="showTagModal = true" class="hover:text-white transition-all text-indigo-400">Configure Affiliate ID</a></li>
+                    </ul>
+                </div>
+
+                <!-- Support/Compliance Columns -->
+                <div>
+                    <h4 class="text-white text-sm font-bold uppercase tracking-wider mb-4">Support & Trust</h4>
+                    <ul class="space-y-2.5 text-sm">
+                        <li><a href="#" class="hover:text-white transition-all">Affiliate Disclosure</a></li>
+                        <li><a href="#" class="hover:text-white transition-all">Privacy Policy</a></li>
+                        <li><a href="#" class="hover:text-white transition-all">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Amazon Disclosure & Copyright -->
+            <div class="border-t border-slate-800 pt-8 mt-8 space-y-4 text-xs text-center md:text-left md:flex md:items-center md:justify-between md:space-y-0">
+                <div class="max-w-3xl">
+                    <p class="leading-relaxed">
+                        SmartPicks is a participant in the Amazon Services LLC Associates Program, an affiliate advertising program designed to provide a means for sites to earn advertising fees by advertising and linking to Amazon.com. Amazon, the Amazon logo, AmazonSupply, and the AmazonSupply logo are trademarks of Amazon.com, Inc. or its affiliates.
+                    </p>
+                </div>
+                <div class="flex-shrink-0">
+                    <p>&copy; <span x-text="new Date().getFullYear()"></span> SmartPicks. All rights reserved.</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- App Data and Logic -->
+    <script src="products.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

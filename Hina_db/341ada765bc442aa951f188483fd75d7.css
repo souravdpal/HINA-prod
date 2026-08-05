@@ -1,0 +1,17 @@
+/* Custom CSS overrides and transitions */
+body {
+    -webkit-tap-highlight-color: transparent;
+}
+
+@keyframes pulse-subtle {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: .85;
+    }
+}
+
+.pulse-subtle {
+    animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
