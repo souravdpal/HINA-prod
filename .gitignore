@@ -37,3 +37,18 @@ __pycache__/
 # OS/editor
 .DS_Store
 .vscode/
+# Node
+node_modules/
+
+# ML models / binaries — too large for git
+*.onnx
+*.onnx.json
+*.bin
+*.bin.*
+*.pt
+
+# Caches
+mcp_tools_cache.json
+image_url_cache.json
+__pycache__/
+*.pyc
