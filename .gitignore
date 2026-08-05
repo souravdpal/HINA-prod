@@ -52,3 +52,7 @@ mcp_tools_cache.json
 image_url_cache.json
 __pycache__/
 *.pyc
+.env
+*.env
+**/.env
+goggle.json
