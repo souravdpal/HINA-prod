@@ -195,6 +195,76 @@ def detect_language(text: str) -> str:
 
 
 # ------------------------------------------------------------------
+# Romanized Hindi ("Hinglish") -> Devanagari, run BEFORE script
+# detection above.
+#
+# split_by_script()/detect_language() only look at script, not
+# language — so "ap kaise hai" (real Hindi, typed in Latin letters)
+# is indistinguishable from actual English by script alone, and gets
+# sent to Kokoro as lang="en-us" on the English voice, which
+# mispronounces it. There's no reliable way to tell "kaise" (Hindi)
+# apart from, say, "case" (English) by script — the fix has to
+# happen at the word level, before the char-by-char script splitter
+# ever sees the text.
+#
+# This is a plain dictionary swap, not a general transliteration
+# engine: it only catches the common conversational words/phrases
+# HINA is actually likely to say or hear repeated back ("ap", "kaise",
+# "hai", "kya", "nahi"...). Anything not in the list is left as-is —
+# real English still passes through completely untouched. Extend
+# ROMAN_HINDI_WORDS as you notice more words HINA mispronounces;
+# longer phrases are matched first so e.g. "kaise ho" isn't partially
+# clobbered by a shorter single-word match first.
+# ------------------------------------------------------------------
+ROMAN_HINDI_WORDS = {
+    # greetings / courtesies
+    "namaste": "नमस्ते", "namaskar": "नमस्कार",
+    "shukriya": "शुक्रिया", "dhanyavad": "धन्यवाद", "dhanyawad": "धन्यवाद",
+    "kripya": "कृपया", "maaf": "माफ़", "maafi": "माफ़ी",
+    # pronouns / common words in casual questions
+    "ap": "आप", "aap": "आप", "tum": "तुम", "main": "मैं", "mai": "मैं",
+    "hum": "हम", "mera": "मेरा", "meri": "मेरी", "tera": "तेरा",
+    "tumhara": "तुम्हारा", "aapka": "आपका", "hamara": "हमारा",
+    # "how are you" family — the exact phrase that was mispronounced
+    "kaise": "कैसे", "kaisi": "कैसी", "kese": "कैसे",
+    "ho": "हो", "hai": "है", "hain": "हैं", "the": "थे", "thi": "थी",
+    # question words
+    "kya": "क्या", "kyun": "क्यों", "kyu": "क्यों", "kaha": "कहाँ",
+    "kaun": "कौन", "kab": "कब", "kitna": "कितना", "kitni": "कितनी",
+    # yes/no/ok/acknowledgement
+    "haan": "हाँ", "han": "हाँ", "nahi": "नहीं", "nahin": "नहीं",
+    "theek": "ठीक", "thik": "ठीक", "acha": "अच्छा", "accha": "अच्छा",
+    "achha": "अच्छा", "bilkul": "बिल्कुल",
+    # very common verbs/connectors
+    "karo": "करो", "karna": "करना", "kiya": "किया", "karenge": "करेंगे",
+    "chalo": "चलो", "dekho": "देखो", "suno": "सुनो", "batao": "बताओ",
+    "samajh": "समझ", "pata": "पता", "matlab": "मतलब",
+    "aur": "और", "lekin": "लेकिन", "kyunki": "क्योंकि",
+}
+
+# Longer entries first so "kaise ho" style multi-word phrases (once
+# added above) aren't pre-empted by a shorter single-word match.
+_ROMAN_HINDI_PATTERN = re.compile(
+    r'\b(' + '|'.join(sorted((re.escape(w) for w in ROMAN_HINDI_WORDS), key=len, reverse=True)) + r')\b',
+    re.IGNORECASE,
+)
+
+
+def transliterate_hinglish(text: str) -> str:
+    """Swaps recognized romanized-Hindi words for their Devanagari
+    form so the existing script-based language detector routes them
+    to the Hindi voice automatically. Leaves everything else (real
+    English words, punctuation, numbers) untouched."""
+    if not text:
+        return text
+
+    def _sub(m):
+        return ROMAN_HINDI_WORDS[m.group(1).lower()]
+
+    return _ROMAN_HINDI_PATTERN.sub(_sub, text)
+
+
+# ------------------------------------------------------------------
 # Smart, language-aware text chunking
 # ------------------------------------------------------------------
 MIN_CHUNK_CHARS = 40
@@ -524,6 +594,10 @@ def speak(text: str) -> int:
         cleaned = clean_for_tts(text)
         if not cleaned:
             return 0
+        # Catch romanized Hindi ("ap kaise hai") before script-based
+        # detection below, which otherwise can't tell it apart from
+        # real English by script alone. See transliterate_hinglish().
+        cleaned = transliterate_hinglish(cleaned)
         dominant = detect_language(cleaned)
         print(f"[voice_server] whole-text dominant language: {dominant}")
         total = Hina_Speak_Stream(cleaned)

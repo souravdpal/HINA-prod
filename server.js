@@ -503,7 +503,7 @@ function clearTurnWatchdog() {
 // never arrives at all (Piper crashed, audio POSTs got dropped, no
 // client connected, etc.), so the UI can't get stuck on "speaking"
 // forever.
-const SPEAKING_FAILSAFE_MS = 120000;
+const SPEAKING_FAILSAFE_MS = 30000;
 
 let speakingTimer = null;
 

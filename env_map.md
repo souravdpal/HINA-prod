@@ -38,4 +38,6 @@ GITHUB_PAT=
 
 NASA_API_KEY=
 
-gamil_key=
+
+
+ng_token=

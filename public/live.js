@@ -104,11 +104,28 @@
     // listening". maxRecordingTimer is now armed once per recording
     // and never touched by the per-frame VAD logic, so it always fires.
     let maxRecordingTimer = null;
-    const SILENCE_MS = 900;        // gap of quiet before we treat the turn as finished
+    const SILENCE_MS = 600;        // gap of quiet before we treat the turn as finished
+                                    // (was 900 — trimmed for snappier cutoff on short
+                                    // replies like "haan"/"ok" without clipping longer
+                                    // sentences, since natural mid-sentence pauses are
+                                    // usually well under 600ms)
     const MIN_SPEECH_MS = 300;     // ignore blips shorter than this
     const MAX_RECORDING_MS = 15000; // absolute cap, independent of VAD state
     let speechStartedAt = 0;
     let energyFloor = 0.01;        // adaptive-ish baseline, refined as we listen
+    // Two-threshold hysteresis instead of one shared multiplier: starting
+    // to speak needs a clearer jump above the floor (avoids a stray
+    // background hum/hiss flipping speechStarted=true in the first
+    // place), but once we're already mid-utterance, dropping back only
+    // needs to clear the lower bar — real speech has natural dips
+    // (breaths, consonants) that shouldn't each look like "still not
+    // silent enough yet". The old single 1.6x multiplier used the same
+    // bar for both, which is exactly what let steady background noise
+    // sit just above threshold forever and starve the silence timer —
+    // recording would never end on its own and always rode out to the
+    // 15s hard cap, swallowing whatever came next into the same blob.
+    const SPEECH_START_MULT = 2.2;
+    const SPEECH_CONTINUE_MULT = 1.3;
 
     // Set true while a music_player/music_control "play"/"resume" event
     // is active, cleared on stop/pause. HINA's own YouTube audio comes
@@ -700,7 +717,10 @@
             // room floor before we call it "speech" — a real voice
             // interrupting music is usually much louder than the music
             // leaking into the mic.
-            const threshold = energyFloor * (musicPlaying ? 3.5 : 1.6);
+            const musicMult = musicPlaying ? 3.5 : 1;
+            const startThreshold = energyFloor * SPEECH_START_MULT * musicMult;
+            const continueThreshold = energyFloor * SPEECH_CONTINUE_MULT * musicMult;
+            const threshold = speechStarted ? continueThreshold : startThreshold;
             const isSpeech = energy > threshold;
             if (isSpeech) {
                 if (!speechStarted) { speechStarted = true; speechStartedAt = Date.now(); }

@@ -178,7 +178,7 @@ def transcribe(raw_bytes: bytes) -> str:
                                # this is what kills the "long gaps of
                                # dead air get misheard/hallucinated"
                                # problem, not a bigger model
-        vad_parameters=dict(min_silence_duration_ms=400),
+        vad_parameters=dict(min_silence_duration_ms=400, speech_pad_ms=250),
         condition_on_previous_text=False,  # prevents Whisper's classic
                                # failure mode of repeating/hallucinating
                                # extra text once it drifts on one bad

@@ -1,0 +1,19 @@
+use_default_settings: true
+
+general:
+  instance_name: "my-searxng"
+
+search:
+  # SearXNG disables the JSON format by default (it's meant for
+  # programmatic use, not public browsers) -- our search_engine.py needs
+  # it, so we turn it on here. Keep this instance private/firewalled since
+  # anyone who can reach it can also hit the JSON API.
+  formats:
+    - html
+    - json
+
+server:
+  # Generate your own secret: `openssl rand -hex 32`
+  secret_key: "CHANGE_ME_RUN_openssl_rand_hex_32"
+  limiter: false
+  image_proxy: true
