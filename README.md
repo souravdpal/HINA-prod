@@ -80,7 +80,7 @@ Voice Engine (TTS Output)
 ## Setup
 
 ```bash
-git clone https://github.com/your-username/hina.git
+git clone https://github.com/souravdpal/HINA-prod.git
 cd hina
 
 pip install -r requirements.txt
